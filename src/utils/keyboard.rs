@@ -21,6 +21,14 @@ pub fn make_search_keyboard() -> KeyboardMarkup {
     make_keyboard(vec![SEARCH_REQUEST_MESSAGE])
 }
 
+pub fn make_role_keyboard() -> KeyboardMarkup {
+    make_keyboard(vec!["Обычный пользователь", "Администратор"])
+}
+
+pub fn make_request_answer_keyboard() -> KeyboardMarkup {
+    make_keyboard(vec!["Да", "Нет"])
+}
+
 fn make_keyboard(variants: Vec<&str>) -> KeyboardMarkup {
     let mut keyboard: Vec<Vec<KeyboardButton>> = vec![];
 
