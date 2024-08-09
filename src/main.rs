@@ -10,7 +10,7 @@ use crate::model::commands::{BotCommand, MestCheckCommand};
 use anyhow::Result;
 use dotenv::dotenv;
 use model::types::*;
-use model::{restaurant, state::State};
+use model::{booking_info::BookingInfo, restaurant, state::State};
 
 use schema::schema;
 
@@ -34,13 +34,13 @@ async fn main() -> Result<()> {
 
     let (tx, rx) = mpsc::channel::<MestCheckCommand>(32);
 
-    let restaurants_booking_info: Db<u64, u16> = Arc::new(scc::HashMap::new());
+    let restaurants_booking_info: Db<u64, BookingInfo> = Arc::new(scc::HashMap::new());
     let restaurant_by_token: Db<String, u64> = Arc::new(scc::HashMap::new());
     let restaurant_managers: Db<u64, UserId> = Arc::new(scc::HashMap::new());
     let managers_restaurant: Db<UserId, u64> = Arc::new(scc::HashMap::new());
 
     for restaurant in &*restaurants {
-        let _ = restaurants_booking_info.insert(restaurant.id, 0);
+        let _ = restaurants_booking_info.insert(restaurant.id, BookingInfo::new());
         let _ = restaurant_by_token.insert(restaurant.token.clone(), restaurant.id);
     }
 

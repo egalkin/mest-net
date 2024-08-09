@@ -1,3 +1,5 @@
+use crate::background_processing::tasks::wait_for_restaurants_response;
+use crate::model::booking_info::BookingInfo;
 use crate::model::commands::BotCommand;
 use crate::model::commands::MestCheckCommand;
 use crate::model::state::State::Start;
@@ -5,7 +7,6 @@ use crate::model::{restaurant::Restaurant, state::State, types::*};
 use crate::utils::constants::SEARCH_REQUEST_MESSAGE;
 use crate::utils::keyboard::*;
 use anyhow::Error;
-use async_std::task;
 use chrono::Utc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -133,7 +134,7 @@ async fn receive_admin_token(
 }
 
 async fn receive_booking_request(
-    restaurants_booking_info: Db<u64, u16>,
+    restaurants_booking_info: Db<u64, BookingInfo>,
     managers_restaurant: Db<UserId, u64>,
     bot: Bot,
     _dialogue: MyDialogue,
@@ -154,9 +155,13 @@ async fn receive_booking_request(
                                     restaurants_booking_info.get_async(&manager_id).await
                                 {
                                     if ans == "Да" {
-                                        *booking_info |= 1 << person_number;
+                                        booking_info.booking_state |= 1 << person_number;
+                                        booking_info.set_booking_expiration_time(
+                                            (person_number - 1) as usize,
+                                            Utc::now() + Duration::from_secs(30),
+                                        )
                                     }
-                                    *booking_info &= !(1 << (8 + person_number));
+                                    booking_info.notifications_state &= !(1 << person_number);
                                 }
                             }
                         }
@@ -213,7 +218,7 @@ async fn receive_person_number(bot: Bot, dialogue: MyDialogue, msg: Message) -> 
 
 async fn receive_location(
     restaurants: Arc<Vec<Restaurant>>,
-    restaurants_booking_info: Db<u64, u16>,
+    restaurants_booking_info: Db<u64, BookingInfo>,
     sender: Sender<MestCheckCommand>,
     bot: Bot,
     dialogue: MyDialogue,
@@ -239,48 +244,14 @@ async fn receive_location(
                 let msg = msg.clone();
                 let closest_restaurants_ids = closest_restaurants_ids.clone();
                 tokio::spawn(async move {
-                    let start_time = Utc::now();
-                    let time_to_finish = start_time + Duration::from_secs(120);
-                    let mut answered_restaurants = Vec::<u64>::new();
-                    loop {
-                        let current_time = Utc::now();
-                        if current_time < time_to_finish {
-                            if answered_restaurants.len() == closest_restaurants_ids.len() {
-                                break;
-                            }
-                            let mut no_answers = 0;
-                            for id in &closest_restaurants_ids {
-                                if let Some(booking_info) =
-                                    restaurants_booking_info.get_async(&id).await
-                                {
-                                    if *booking_info & (1 << person_number) != 0 {
-                                        answered_restaurants.push(*id);
-                                    }
-                                    if (current_time - start_time).num_seconds() > 30
-                                        && *booking_info & (1 << (8 + person_number)) == 0
-                                    {
-                                        no_answers += 1;
-                                    }
-                                }
-                            }
-                            if no_answers == closest_restaurants_ids.len() {
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
-                        task::sleep(Duration::from_secs(1)).await;
-                    }
-                    if answered_restaurants.len() != 0 {
-                        bot.send_message(msg.chat.id, format!("Список ресторанов, где есть места на {person_number} персон: {answered_restaurants:?}")).await?;
-                    } else {
-                        bot.send_message(
-                            msg.chat.id,
-                            format!("К сожалению, мест на {person_number} персон нет"),
-                        )
-                        .await?;
-                    }
-                    Ok::<(), Error>(())
+                    wait_for_restaurants_response(
+                        bot,
+                        msg,
+                        closest_restaurants_ids,
+                        restaurants_booking_info,
+                        person_number,
+                    )
+                    .await
                 });
             }
 
