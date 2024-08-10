@@ -6,6 +6,7 @@ use crate::utils::keyboard::make_request_answer_keyboard;
 use anyhow::Result;
 use async_std::task;
 use chrono::Utc;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use teloxide::prelude::*;
@@ -48,7 +49,7 @@ pub(crate) async fn send_mest_check_notification(
                             booking_info.notifications_state |= 1 << person_number;
                             booking_info.set_booking_request_expiration_time(
                                 (person_number - 1) as usize,
-                                Utc::now() + Duration::from_secs(30),
+                                Utc::now() + Duration::from_secs(2 * 60),
                             );
                             {
                                 let id = restaurant.id;
@@ -88,13 +89,11 @@ pub(crate) async fn wait_for_restaurants_response(
 ) -> HandlerResult {
     let start_time = Utc::now();
     let time_to_finish = start_time + Duration::from_secs(120);
-    let mut answered_restaurants = Vec::<&Restaurant>::new();
+    let mut answered_restaurants = HashSet::<&Restaurant>::new();
     loop {
         let current_time = Utc::now();
         if current_time < time_to_finish {
-            if answered_restaurants.len() == closest_restaurants.len() {
-                break;
-            }
+            answered_restaurants.clear();
             let mut no_answers = 0;
             for restaurant in &*closest_restaurants {
                 if let Some(mut booking_info) =
@@ -106,17 +105,18 @@ pub(crate) async fn wait_for_restaurants_response(
                         if Utc::now() > *booking_expiration_time {
                             booking_info.booking_state &= !(1 << person_number)
                         } else {
-                            answered_restaurants.push(restaurant);
+                            answered_restaurants.insert(restaurant);
                         }
                     }
                     if (current_time - start_time).num_seconds() > 30
+                        && booking_info.booking_state & (1 << person_number) == 0
                         && booking_info.notifications_state & (1 << person_number) == 0
                     {
                         no_answers += 1;
                     }
                 }
             }
-            if no_answers == closest_restaurants.len() {
+            if (answered_restaurants.len() + no_answers) == closest_restaurants.len() {
                 break;
             }
         } else {
@@ -127,13 +127,14 @@ pub(crate) async fn wait_for_restaurants_response(
     if answered_restaurants.len() != 0 {
         let mut formatted_answer = String::new();
         for restaurant in answered_restaurants {
-            formatted_answer.push_str(&format!("{}\n", restaurant))
+            formatted_answer.push_str(&format!("*•* {}\n", restaurant))
         }
+        formatted_answer.push_str("Выбирайте");
         println!("{formatted_answer}");
         bot.send_message(
             msg.chat.id,
             format!(
-                "Список ресторанов, где есть места на {person_number} персон:\n {formatted_answer}"
+                "Список ресторанов, где есть места на {person_number} персон:\n{formatted_answer}"
             ),
         )
         .parse_mode(ParseMode::MarkdownV2)

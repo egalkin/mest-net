@@ -1,6 +1,7 @@
 use crate::utils::distance::calculate_distance;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
 use teloxide::prelude::UserId;
 use teloxide::types::Location;
 use time::Time;
@@ -53,5 +54,19 @@ impl Restaurant {
 impl Display for Restaurant {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{}]({})", self.name, self.maps_url)
+    }
+}
+
+impl PartialEq for Restaurant {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for Restaurant {}
+
+impl Hash for Restaurant {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state)
     }
 }

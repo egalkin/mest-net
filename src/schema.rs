@@ -10,7 +10,7 @@ use anyhow::Error;
 use chrono::Utc;
 use std::sync::Arc;
 use std::time::Duration;
-use teloxide::types::ReplyMarkup;
+use teloxide::types::{ParseMode, ReplyMarkup};
 use teloxide::{
     dispatching::{dialogue, dialogue::InMemStorage, UpdateHandler},
     prelude::*,
@@ -158,7 +158,7 @@ async fn receive_booking_request(
                                         booking_info.booking_state |= 1 << person_number;
                                         booking_info.set_booking_expiration_time(
                                             (person_number - 1) as usize,
-                                            Utc::now() + Duration::from_secs(30),
+                                            Utc::now() + Duration::from_secs(2 * 60),
                                         )
                                     }
                                     booking_info.notifications_state &= !(1 << person_number);
@@ -234,6 +234,8 @@ async fn receive_location(
                     .map(|restaurant| restaurant.clone())
                     .collect(),
             );
+
+            println!("{closest_restaurants:?}");
 
             bot.send_message(
                 msg.chat.id,
