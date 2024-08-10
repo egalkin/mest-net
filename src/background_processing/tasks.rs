@@ -54,6 +54,7 @@ pub(crate) async fn send_mest_check_notification(
                             {
                                 let id = restaurant.id;
                                 let restaurant_managers = restaurant_managers.clone();
+                                let restaurants_booking_info = restaurants_booking_info.clone();
                                 set.spawn(async move {
                                     match restaurant_managers.get_async(&id).await {
                                         Some(entry) => {
@@ -66,7 +67,12 @@ pub(crate) async fn send_mest_check_notification(
                                             .reply_markup(make_request_answer_keyboard())
                                             .await?;
                                         }
-                                        _ => {}
+                                        None => {
+                                            if let Some(mut booking_info) =
+                                                restaurants_booking_info.get_async(&id).await {
+                                                booking_info.notifications_state &= !(1 << person_number);
+                                            }
+                                        }
                                     }
                                     Ok(())
                                 });
