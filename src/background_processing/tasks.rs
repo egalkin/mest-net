@@ -1,10 +1,12 @@
 use crate::model::booking_info::BookingInfo;
 use crate::model::commands::MestCheckCommand;
+use crate::model::restaurant::Restaurant;
 use crate::model::types::{Db, HandlerResult};
 use crate::utils::keyboard::make_request_answer_keyboard;
 use anyhow::Result;
 use async_std::task;
 use chrono::Utc;
+use std::sync::Arc;
 use std::time::Duration;
 use teloxide::prelude::*;
 use tokio::sync::mpsc::Receiver;
@@ -20,12 +22,14 @@ pub(crate) async fn send_mest_check_notification(
         match cmd {
             MestCheckCommand::Check {
                 person_number,
-                restaurant_ids,
+                restaurants,
             } => {
                 let mut set: JoinSet<Result<()>> = JoinSet::new();
-                for id in &restaurant_ids {
+                for restaurant in &*restaurants {
                     let bot = bot.clone();
-                    if let Some(mut booking_info) = restaurants_booking_info.get_async(id).await {
+                    if let Some(mut booking_info) =
+                        restaurants_booking_info.get_async(&restaurant.id).await
+                    {
                         if booking_info.booking_state & (1 << person_number) != 0 {
                             let booking_expiration_time = booking_info
                                 .get_booking_expiration_time((person_number - 1) as usize);
@@ -46,7 +50,7 @@ pub(crate) async fn send_mest_check_notification(
                                 Utc::now() + Duration::from_secs(30),
                             );
                             {
-                                let id = *id;
+                                let id = restaurant.id;
                                 let restaurant_managers = restaurant_managers.clone();
                                 set.spawn(async move {
                                     match restaurant_managers.get_async(&id).await {
@@ -77,29 +81,31 @@ pub(crate) async fn send_mest_check_notification(
 pub(crate) async fn wait_for_restaurants_response(
     bot: Bot,
     msg: Message,
-    closest_restaurants_ids: Vec<u64>,
+    closest_restaurants: Arc<Vec<Arc<Restaurant>>>,
     restaurants_booking_info: Db<u64, BookingInfo>,
     person_number: u8,
 ) -> HandlerResult {
     let start_time = Utc::now();
     let time_to_finish = start_time + Duration::from_secs(120);
-    let mut answered_restaurants = Vec::<u64>::new();
+    let mut answered_restaurants = Vec::<&Restaurant>::new();
     loop {
         let current_time = Utc::now();
         if current_time < time_to_finish {
-            if answered_restaurants.len() == closest_restaurants_ids.len() {
+            if answered_restaurants.len() == closest_restaurants.len() {
                 break;
             }
             let mut no_answers = 0;
-            for id in &closest_restaurants_ids {
-                if let Some(mut booking_info) = restaurants_booking_info.get_async(&id).await {
+            for restaurant in &*closest_restaurants {
+                if let Some(mut booking_info) =
+                    restaurants_booking_info.get_async(&restaurant.id).await
+                {
                     if booking_info.booking_state & (1 << person_number) != 0 {
                         let booking_expiration_time =
                             booking_info.get_booking_expiration_time((person_number - 1) as usize);
                         if Utc::now() > *booking_expiration_time {
                             booking_info.booking_state &= !(1 << person_number)
                         } else {
-                            answered_restaurants.push(*id);
+                            answered_restaurants.push(restaurant);
                         }
                     }
                     if (current_time - start_time).num_seconds() > 30
@@ -109,7 +115,7 @@ pub(crate) async fn wait_for_restaurants_response(
                     }
                 }
             }
-            if no_answers == closest_restaurants_ids.len() {
+            if no_answers == closest_restaurants.len() {
                 break;
             }
         } else {

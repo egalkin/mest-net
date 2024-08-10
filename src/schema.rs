@@ -217,7 +217,7 @@ async fn receive_person_number(bot: Bot, dialogue: MyDialogue, msg: Message) -> 
 }
 
 async fn receive_location(
-    restaurants: Arc<Vec<Restaurant>>,
+    restaurants: Arc<Vec<Arc<Restaurant>>>,
     restaurants_booking_info: Db<u64, BookingInfo>,
     sender: Sender<MestCheckCommand>,
     bot: Bot,
@@ -227,11 +227,14 @@ async fn receive_location(
 ) -> HandlerResult {
     match msg.location() {
         Some(location) => {
-            let closest_restaurants_ids: Vec<u64> = restaurants
-                .iter()
-                .filter(|restaurant| restaurant.distance_to(location) <= 1.0)
-                .map(|restaurant| restaurant.id)
-                .collect();
+            let closest_restaurants: Arc<Vec<Arc<Restaurant>>> = Arc::new(
+                restaurants
+                    .iter()
+                    .filter(|restaurant| restaurant.distance_to(location) <= 1.0)
+                    .map(|restaurant| restaurant.clone())
+                    .collect(),
+            );
+
             bot.send_message(
                 msg.chat.id,
                 "В ближайшие к вам рестораны был отправлен запрос, ожидайте ответа",
@@ -242,12 +245,12 @@ async fn receive_location(
             {
                 let bot = bot.clone();
                 let msg = msg.clone();
-                let closest_restaurants_ids = closest_restaurants_ids.clone();
+                let closest_restaurants = closest_restaurants.clone();
                 tokio::spawn(async move {
                     wait_for_restaurants_response(
                         bot,
                         msg,
-                        closest_restaurants_ids,
+                        closest_restaurants,
                         restaurants_booking_info,
                         person_number,
                     )
@@ -257,7 +260,7 @@ async fn receive_location(
 
             let cmd = MestCheckCommand::Check {
                 person_number,
-                restaurant_ids: closest_restaurants_ids,
+                restaurants: closest_restaurants.clone(),
             };
             if let Err(err) = sender.send(cmd).await {
                 println!("{err:?}")

@@ -4,7 +4,7 @@ use teloxide::prelude::UserId;
 use teloxide::types::Location;
 use time::Time;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Restaurant {
     pub id: u64,
     pub name: String,
@@ -15,7 +15,7 @@ pub struct Restaurant {
     pub schedule: Schedule,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "content")]
 pub enum Schedule {
     Regular {
@@ -27,7 +27,7 @@ pub enum Schedule {
     },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkingTime {
     pub start_time: Time,
     pub end_time: Time,

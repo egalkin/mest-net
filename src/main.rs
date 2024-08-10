@@ -31,7 +31,6 @@ async fn main() -> Result<()> {
     log::info!("Starting Mest Net bot...");
 
     let restaurants = Arc::new(deserialize_restaurants("restaurant_list.json").unwrap());
-
     let (tx, rx) = mpsc::channel::<MestCheckCommand>(32);
 
     let restaurants_booking_info: Db<u64, BookingInfo> = Arc::new(scc::HashMap::new());
