@@ -129,7 +129,6 @@ pub(crate) async fn wait_for_restaurants_response(
         for restaurant in answered_restaurants {
             formatted_answer.push_str(&format!("*•* {}\n", restaurant))
         }
-        formatted_answer.push_str("Выбирайте");
         println!("{formatted_answer}");
         bot.send_message(
             msg.chat.id,
@@ -137,6 +136,7 @@ pub(crate) async fn wait_for_restaurants_response(
                 "Список ресторанов, где есть места на {person_number} персон:\n{formatted_answer}"
             ),
         )
+        .disable_web_page_preview(true)
         .parse_mode(ParseMode::MarkdownV2)
         .await?;
     } else {
