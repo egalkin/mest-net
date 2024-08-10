@@ -1,5 +1,6 @@
 use crate::utils::distance::calculate_distance;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use teloxide::prelude::UserId;
 use teloxide::types::Location;
 use time::Time;
@@ -13,6 +14,7 @@ pub struct Restaurant {
     pub token: String,
     pub manager_id: UserId,
     pub schedule: Schedule,
+    pub maps_url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,5 +47,11 @@ impl Restaurant {
 
     pub fn set_manager_id(&mut self, manager_id: UserId) {
         self.manager_id = manager_id;
+    }
+}
+
+impl Display for Restaurant {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}]({})", self.name, self.maps_url)
     }
 }

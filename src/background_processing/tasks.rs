@@ -9,6 +9,7 @@ use chrono::Utc;
 use std::sync::Arc;
 use std::time::Duration;
 use teloxide::prelude::*;
+use teloxide::types::ParseMode;
 use tokio::sync::mpsc::Receiver;
 use tokio::task::JoinSet;
 
@@ -124,7 +125,19 @@ pub(crate) async fn wait_for_restaurants_response(
         task::sleep(Duration::from_secs(1)).await;
     }
     if answered_restaurants.len() != 0 {
-        bot.send_message(msg.chat.id, format!("Список ресторанов, где есть места на {person_number} персон: {answered_restaurants:?}")).await?;
+        let mut formatted_answer = String::new();
+        for restaurant in answered_restaurants {
+            formatted_answer.push_str(&format!("{}\n", restaurant))
+        }
+        println!("{formatted_answer}");
+        bot.send_message(
+            msg.chat.id,
+            format!(
+                "Список ресторанов, где есть места на {person_number} персон:\n {formatted_answer}"
+            ),
+        )
+        .parse_mode(ParseMode::MarkdownV2)
+        .await?;
     } else {
         bot.send_message(
             msg.chat.id,
