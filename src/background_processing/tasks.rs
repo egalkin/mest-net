@@ -69,8 +69,10 @@ pub(crate) async fn send_mest_check_notification(
                                         }
                                         None => {
                                             if let Some(mut booking_info) =
-                                                restaurants_booking_info.get_async(&id).await {
-                                                booking_info.notifications_state &= !(1 << person_number);
+                                                restaurants_booking_info.get_async(&id).await
+                                            {
+                                                booking_info.notifications_state &=
+                                                    !(1 << person_number);
                                             }
                                         }
                                     }

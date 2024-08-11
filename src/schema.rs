@@ -10,7 +10,7 @@ use anyhow::Error;
 use chrono::Utc;
 use std::sync::Arc;
 use std::time::Duration;
-use teloxide::types::{ParseMode, ReplyMarkup};
+use teloxide::types::ReplyMarkup;
 use teloxide::{
     dispatching::{dialogue, dialogue::InMemStorage, UpdateHandler},
     prelude::*,
@@ -231,6 +231,7 @@ async fn receive_location(
                 restaurants
                     .iter()
                     .filter(|restaurant| restaurant.distance_to(location) <= 1.0)
+                    .filter(|restaurant| restaurant.is_open())
                     .map(|restaurant| restaurant.clone())
                     .collect(),
             );
