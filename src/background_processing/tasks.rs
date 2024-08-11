@@ -137,7 +137,6 @@ pub(crate) async fn wait_for_restaurants_response(
         for restaurant in answered_restaurants {
             formatted_answer.push_str(&format!("*•* {}\n", restaurant))
         }
-        println!("{formatted_answer}");
         bot.send_message(
             msg.chat.id,
             format!(

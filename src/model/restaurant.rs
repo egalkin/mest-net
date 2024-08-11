@@ -18,6 +18,9 @@ pub struct Restaurant {
     pub manager_id: UserId,
     pub schedule: Schedule,
     pub maps_url: String,
+    pub average_price: String,
+    pub segment: String,
+    pub kitchen: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,10 +43,7 @@ impl Schedule {
             end_time: &NaiveTime,
         ) -> bool {
             let time = passed_date_time.time();
-            println!("{time}, {start_time}, {end_time}");
             if start_time > end_time {
-                println!("{}", time >= *start_time);
-
                 return (time >= *start_time && time <= *DAY_END)
                     || (time >= *MIDNIGHT && time <= *end_time);
             } else {
@@ -133,7 +133,11 @@ impl Restaurant {
 
 impl Display for Restaurant {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}]({})", self.name, self.maps_url)
+        write!(
+            f,
+            "[{}]({}): Кухня: {}; Средний чек: {}",
+            self.name, self.maps_url, self.kitchen, self.average_price
+        )
     }
 }
 

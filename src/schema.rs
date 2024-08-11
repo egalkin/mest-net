@@ -236,8 +236,6 @@ async fn receive_location(
                     .collect(),
             );
 
-            println!("{closest_restaurants:?}");
-
             bot.send_message(
                 msg.chat.id,
                 "В ближайшие к вам рестораны был отправлен запрос, ожидайте ответа",
