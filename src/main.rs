@@ -1,5 +1,6 @@
 mod background_processing;
 mod db;
+mod dialogue_storage;
 mod model;
 mod schema;
 mod utils;
@@ -16,11 +17,13 @@ use schema::schema;
 
 use std::sync::Arc;
 
+use teloxide::dispatching::dialogue::serializer::Bincode;
+use teloxide::dispatching::dialogue::{ErasedStorage, Storage, TraceStorage};
 use teloxide::types::MenuButton;
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*, utils::command::BotCommands};
-
 use tokio::sync::mpsc;
 
+use crate::dialogue_storage::skytable_storage::SkytableStorage;
 use utils::deserializer::deserialize_restaurants;
 
 #[tokio::main]
@@ -43,6 +46,9 @@ async fn main() -> Result<()> {
         let _ = restaurant_by_token.insert(restaurant.token.clone(), restaurant.id);
     }
 
+    let skytable_storage: Arc<ErasedStorage<State>> =
+        SkytableStorage::open(Bincode).await.unwrap().erase();
+
     let bot = Bot::from_env();
 
     bot.set_my_commands(BotCommand::bot_commands()).await?;
@@ -63,7 +69,7 @@ async fn main() -> Result<()> {
     Dispatcher::builder(bot, schema())
         .dependencies(dptree::deps![
             db.clone(),
-            InMemStorage::<State>::new(),
+            skytable_storage.clone(),
             restaurants.clone(),
             restaurants_booking_info.clone(),
             restaurant_by_token.clone(),

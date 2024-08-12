@@ -1,8 +1,9 @@
 use crate::model::state::State;
 use anyhow::Result;
 use std::sync::Arc;
-use teloxide::{dispatching::dialogue::InMemStorage, prelude::*};
+use teloxide::dispatching::dialogue::ErasedStorage;
+use teloxide::prelude::*;
 
-pub(crate) type MyDialogue = Dialogue<State, InMemStorage<State>>;
-pub(crate) type HandlerResult = Result<()>;
+pub(crate) type MyDialogue = Dialogue<State, ErasedStorage<State>>;
+pub(crate) type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 pub(crate) type Db<K, T> = Arc<scc::HashMap<K, T>>;

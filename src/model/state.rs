@@ -1,4 +1,4 @@
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) enum State {
     #[default]
     Start,

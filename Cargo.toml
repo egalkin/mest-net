@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.86"
 async-std = "1.12.0"
+bb8 = "0.8.5"
 chrono = "0.4.38"
 dotenv = "0.15.0"
 dotenv_codegen = "0.15.0"
@@ -21,7 +22,9 @@ sea-orm = { version = "1.0.0", features = ["sqlx-postgres", "runtime-tokio-rustl
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.204", features = ["derive"] }
 serde_json = "1.0.120"
-teloxide = { version = "0.12", features = ["macros", "webhooks"] }
+skytable = "0.8.10"
+teloxide = { version = "0.12", features = ["macros", "webhooks", "redis-storage", "bincode-serializer"] }
+thiserror = "1.0.63"
 tokio = { version = "1.8", features = ["rt-multi-thread", "macros"] }
 toml = "0.8.19"
 url = "2.5.2"

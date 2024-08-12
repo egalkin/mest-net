@@ -6,19 +6,19 @@ use crate::model::state::State::Start;
 use crate::model::{restaurant::Restaurant, state::State, types::*};
 use crate::utils::constants::SEARCH_REQUEST_MESSAGE;
 use crate::utils::keyboard::*;
-use anyhow::Error;
 use chrono::Utc;
 use std::sync::Arc;
 use std::time::Duration;
+use teloxide::dispatching::dialogue::ErasedStorage;
 use teloxide::types::ReplyMarkup;
 use teloxide::{
-    dispatching::{dialogue, dialogue::InMemStorage, UpdateHandler},
+    dispatching::{dialogue, UpdateHandler},
     prelude::*,
     utils::command::BotCommands,
 };
 use tokio::sync::mpsc::Sender;
 
-pub(crate) fn schema() -> UpdateHandler<Error> {
+pub(crate) fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync>> {
     use dptree::case;
 
     let command_handler = teloxide::filter_command::<BotCommand, _>()
@@ -44,7 +44,7 @@ pub(crate) fn schema() -> UpdateHandler<Error> {
         .branch(case![State::ReceiveLocation { person_number }].endpoint(receive_location))
         .branch(dptree::endpoint(invalid_input));
 
-    dialogue::enter::<Update, InMemStorage<State>, State, _>().branch(message_handler)
+    dialogue::enter::<Update, ErasedStorage<State>, State, _>().branch(message_handler)
 }
 
 async fn invalid_input(bot: Bot, msg: Message) -> HandlerResult {
