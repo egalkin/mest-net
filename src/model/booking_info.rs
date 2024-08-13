@@ -5,15 +5,17 @@ pub(crate) struct BookingInfo {
     pub notifications_state: u8,
     pub booking_request_expiration_times: [DateTime<Utc>; 8],
     pub booking_expiration_times: [DateTime<Utc>; 8],
+    pub restaurant_name: String,
 }
 
 impl BookingInfo {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(restaurant_name: String) -> Self {
         BookingInfo {
             booking_state: 0,
             notifications_state: 0,
             booking_request_expiration_times: [DateTime::default(); 8],
             booking_expiration_times: [DateTime::default(); 8],
+            restaurant_name,
         }
     }
 

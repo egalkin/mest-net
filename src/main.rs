@@ -15,8 +15,11 @@ use model::{booking_info::BookingInfo, restaurant, state::State};
 
 use schema::schema;
 
+use log::LevelFilter;
+use log4rs::append::file::FileAppender;
+use log4rs::config::{Appender, Config, Root};
+use log4rs::encode::pattern::PatternEncoder;
 use std::sync::Arc;
-
 use teloxide::dispatching::dialogue::serializer::Bincode;
 use teloxide::dispatching::dialogue::{ErasedStorage, Storage};
 use teloxide::types::MenuButton;
@@ -29,8 +32,18 @@ use utils::deserializer::deserialize_restaurants;
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
-    pretty_env_logger::init();
     let db = DatabaseHandler::from_env().await;
+
+    let logfile = FileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new("{d} - {l} - {m}\n")))
+        .build("log/output.log")?;
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("logfile", Box::new(logfile)))
+        .build(Root::builder().appender("logfile").build(LevelFilter::Info))?;
+
+    log4rs::init_config(config)?;
+
     log::info!("Starting Mest Net bot...");
 
     let restaurants = Arc::new(deserialize_restaurants("restaurant_list.json").unwrap());
@@ -42,7 +55,8 @@ async fn main() -> Result<()> {
     let managers_restaurant: Db<UserId, u64> = Arc::new(scc::HashMap::new());
 
     for restaurant in &*restaurants {
-        let _ = restaurants_booking_info.insert(restaurant.id, BookingInfo::new());
+        let _ = restaurants_booking_info
+            .insert(restaurant.id, BookingInfo::new(restaurant.name.clone()));
         let _ = restaurant_by_token.insert(restaurant.token.clone(), restaurant.id);
     }
 

@@ -164,8 +164,16 @@ async fn receive_booking_request(
                                         booking_info.set_booking_expiration_time(
                                             (person_number - 1) as usize,
                                             Utc::now() + Duration::from_secs(2 * 60),
-                                        )
+                                        );
                                     }
+                                    log::info!(
+                                            "{} manager with username = {:?} and user_id = {} {} booking request for {} persons",
+                                            booking_info.restaurant_name,
+                                            msg.from().unwrap().username,
+                                            msg.from().unwrap().id,
+                                            if ans == "Да" {"approved"} else {"reject"},
+                                            person_number
+                                    );
                                     booking_info.notifications_state &= !(1 << person_number);
                                 }
                             }
@@ -269,8 +277,18 @@ async fn receive_location(
                 restaurants: closest_restaurants.clone(),
             };
             if let Err(err) = sender.send(cmd).await {
-                println!("{err:?}")
+                log::error!("{err}")
+            } else {
+                log::info!(
+                    "User with username = {:?} and user_id = {} send booking request for {} persons at location with latitude = {} and longitude = {}",
+                    msg.from().unwrap().username,
+                    msg.from().unwrap().id,
+                    person_number,
+                    location.latitude,
+                    location.longitude
+                )
             };
+
             dialogue.exit().await?;
         }
         None => {
