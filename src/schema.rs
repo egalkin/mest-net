@@ -10,7 +10,7 @@ use chrono::Utc;
 use std::sync::Arc;
 use std::time::Duration;
 use teloxide::dispatching::dialogue::ErasedStorage;
-use teloxide::types::ReplyMarkup;
+use teloxide::types::{ParseMode, ReplyMarkup};
 use teloxide::{
     dispatching::{dialogue, UpdateHandler},
     prelude::*,
@@ -81,15 +81,20 @@ async fn reset(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
 async fn receive_role_selection(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
     match msg.text() {
         Some("Обычный пользователь") => {
-            bot.send_message(msg.chat.id, "Добро пожаловать в наш бот!")
+            bot.send_message(msg.chat.id, include_str!("resources/greetings.txt"))
                 .reply_markup(make_search_keyboard())
+                .parse_mode(ParseMode::Html)
                 .await?;
             dialogue.update(State::ReceiveSearchRequest).await?;
         }
         Some("Администратор") => {
-            bot.send_message(msg.chat.id, "Введите ваш токен")
-                .reply_markup(ReplyMarkup::kb_remove())
-                .await?;
+            bot.send_message(
+                msg.chat.id,
+                include_str!("resources/greetings_for_admin.txt"),
+            )
+            .reply_markup(ReplyMarkup::kb_remove())
+            .parse_mode(ParseMode::Html)
+            .await?;
             dialogue.update(State::ReceiveAdminToken).await?
         }
         _ => {

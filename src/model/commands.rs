@@ -5,12 +5,12 @@ use teloxide::utils::command::BotCommands;
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase")]
 pub(crate) enum BotCommand {
-    #[command(description = "Help command")]
-    Help,
-    #[command(description = "Start command")]
+    #[command(description = "Начать использование")]
     Start,
-    #[command(description = "Reset command")]
+    #[command(description = "Сбросить состояние диалога")]
     Reset,
+    #[command(description = "Показать список всех команд")]
+    Help,
 }
 
 pub(crate) enum MestCheckCommand {

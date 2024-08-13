@@ -18,9 +18,9 @@ use schema::schema;
 use std::sync::Arc;
 
 use teloxide::dispatching::dialogue::serializer::Bincode;
-use teloxide::dispatching::dialogue::{ErasedStorage, Storage, TraceStorage};
+use teloxide::dispatching::dialogue::{ErasedStorage, Storage};
 use teloxide::types::MenuButton;
-use teloxide::{dispatching::dialogue::InMemStorage, prelude::*, utils::command::BotCommands};
+use teloxide::{prelude::*, utils::command::BotCommands};
 use tokio::sync::mpsc;
 
 use crate::dialogue_storage::skytable_storage::SkytableStorage;
