@@ -118,13 +118,24 @@ async fn receive_admin_token(
         Some(token) => match db_handler.find_manager_by_token(token.to_string()).await {
             Some(entity) => {
                 let mut active_entity = entity.into_active_model();
-                if let None = active_entity.tg_id.unwrap() {
-                    active_entity.tg_id = Set(Some(msg.from().unwrap().id.0));
-                    db_handler.update_manager(active_entity).await;
-                }
-                bot.send_message(msg.chat.id, "Ожидайте запросов на бронирование")
+                if let Some(_) = db_handler
+                    .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
+                    .await
+                {
+                    bot.send_message(
+                        msg.chat.id,
+                        "Нельзя быть администратором более чем в одном ресторане",
+                    )
                     .await?;
-                dialogue.update(State::WaitingForRequests).await?
+                } else {
+                    if let None = active_entity.tg_id.unwrap() {
+                        active_entity.tg_id = Set(Some(msg.from().unwrap().id.0 as i64));
+                        db_handler.update_manager(active_entity).await?;
+                    }
+                    bot.send_message(msg.chat.id, "Ожидайте запросов на бронирование")
+                        .await?;
+                    dialogue.update(State::WaitingForRequests).await?
+                }
             }
             _ => {
                 bot.send_message(msg.chat.id, "Неверный токен").await?;

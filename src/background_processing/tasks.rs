@@ -1,3 +1,4 @@
+use crate::db::DatabaseHandler;
 use crate::model::booking_info::BookingInfo;
 use crate::model::commands::MestCheckCommand;
 use crate::model::restaurant::Restaurant;
@@ -13,7 +14,6 @@ use teloxide::prelude::*;
 use teloxide::types::ParseMode;
 use tokio::sync::mpsc::Receiver;
 use tokio::task::JoinSet;
-use crate::db::DatabaseHandler;
 
 pub(crate) async fn send_mest_check_notification(
     bot: Bot,
@@ -61,7 +61,7 @@ pub(crate) async fn send_mest_check_notification(
                                         Some(entity) => {
                                             if let Some(tg_id) = entity.tg_id {
                                                 bot.send_message(
-                                                    UserId(tg_id),
+                                                    UserId(tg_id as u64),
                                                     format!(
                                                         "У вас есть места на {person_number} персон?"
                                                     ),

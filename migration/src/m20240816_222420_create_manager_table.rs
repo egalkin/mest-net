@@ -14,7 +14,7 @@ impl MigrationTrait for Migration {
                     .table(Manager::Table)
                     .if_not_exists()
                     .col(pk_auto(Manager::Id))
-                    .col(big_unsigned_null(Manager::TgId))
+                    .col(big_integer_null(Manager::TgId).unique_key())
                     .col(string(Manager::Token))
                     .col(integer(Manager::RestaurantId))
                     .foreign_key(

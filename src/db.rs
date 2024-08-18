@@ -1,8 +1,8 @@
 use crate::entity::manager::Column;
 use crate::entity::prelude::{Manager, Restaurant};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait,
-    QueryFilter,
+    ActiveModelTrait, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbErr,
+    EntityTrait, QueryFilter,
 };
 use std::env;
 
@@ -57,9 +57,18 @@ impl DatabaseHandler {
             })
     }
 
-    pub async fn update_manager(&self, manager: ManagerActiveModel) {
-        if let Err(x) = manager.update(&self.db).await {
-            log::error!("Error accessing the database: {:?}", x);
-        }
+    pub async fn find_manager_by_tg_id(&self, id: i64) -> Option<ManagerModel> {
+        Manager::find()
+            .filter(Column::TgId.eq(id))
+            .one(&self.db)
+            .await
+            .unwrap_or_else(|x| {
+                log::error!("Error accessing the database: {:?}", x);
+                None
+            })
+    }
+
+    pub async fn update_manager(&self, manager: ManagerActiveModel) -> Result<ManagerModel, DbErr> {
+        manager.update(&self.db).await
     }
 }

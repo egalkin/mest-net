@@ -26,3 +26,7 @@ insert into restaurant values
         }
       }
     }');
+
+insert into manager values
+    (1, null, 'Mama', 1),
+    (2, null, 'Papa', 2);
