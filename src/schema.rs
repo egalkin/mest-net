@@ -1,4 +1,5 @@
 use crate::background_processing::tasks::wait_for_restaurants_response;
+use crate::db::DatabaseHandler;
 use crate::model::booking_info::BookingInfo;
 use crate::model::commands::BotCommand;
 use crate::model::commands::MestCheckCommand;
@@ -7,6 +8,8 @@ use crate::model::{restaurant::Restaurant, state::State, types::*};
 use crate::utils::constants::SEARCH_REQUEST_MESSAGE;
 use crate::utils::keyboard::*;
 use chrono::Utc;
+use sea_orm::ActiveValue::Set;
+use sea_orm::IntoActiveModel;
 use std::sync::Arc;
 use std::time::Duration;
 use teloxide::dispatching::dialogue::ErasedStorage;
@@ -106,22 +109,19 @@ async fn receive_role_selection(bot: Bot, dialogue: MyDialogue, msg: Message) ->
 }
 
 async fn receive_admin_token(
-    restaurant_by_token: Db<String, u64>,
-    restaurant_managers: Db<u64, UserId>,
-    managers_restaurant: Db<UserId, u64>,
+    db_handler: DatabaseHandler,
     bot: Bot,
     dialogue: MyDialogue,
     msg: Message,
 ) -> HandlerResult {
     match msg.text() {
-        Some(token) => match restaurant_by_token.get_async(token).await {
-            Some(entry) => {
-                let _ = restaurant_managers
-                    .insert_async(*entry.get(), msg.from().unwrap().id)
-                    .await;
-                let _ = managers_restaurant
-                    .insert_async(msg.from().unwrap().id, *entry.get())
-                    .await;
+        Some(token) => match db_handler.find_manager_by_token(token.to_string()).await {
+            Some(entity) => {
+                let mut active_entity = entity.into_active_model();
+                if let None = active_entity.tg_id.unwrap() {
+                    active_entity.tg_id = Set(Some(msg.from().unwrap().id.0));
+                    db_handler.update_manager(active_entity).await;
+                }
                 bot.send_message(msg.chat.id, "Ожидайте запросов на бронирование")
                     .await?;
                 dialogue.update(State::WaitingForRequests).await?

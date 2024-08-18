@@ -13,12 +13,13 @@ use teloxide::prelude::*;
 use teloxide::types::ParseMode;
 use tokio::sync::mpsc::Receiver;
 use tokio::task::JoinSet;
+use crate::db::DatabaseHandler;
 
 pub(crate) async fn send_mest_check_notification(
     bot: Bot,
     mut rx: Receiver<MestCheckCommand>,
+    db_handler: DatabaseHandler,
     restaurants_booking_info: Db<i32, BookingInfo>,
-    restaurant_managers: Db<i32, UserId>,
 ) {
     while let Some(cmd) = rx.recv().await {
         match cmd {
@@ -53,19 +54,21 @@ pub(crate) async fn send_mest_check_notification(
                             );
                             {
                                 let id = restaurant.id;
-                                let restaurant_managers = restaurant_managers.clone();
+                                let db_handler = db_handler.clone();
                                 let restaurants_booking_info = restaurants_booking_info.clone();
                                 set.spawn(async move {
-                                    match restaurant_managers.get_async(&id).await {
-                                        Some(entry) => {
-                                            bot.send_message(
-                                                *entry.get(),
-                                                format!(
-                                                    "У вас есть места на {person_number} персон?"
-                                                ),
-                                            )
-                                            .reply_markup(make_request_answer_keyboard())
-                                            .await?;
+                                    match db_handler.find_manager_by_id(id).await {
+                                        Some(entity) => {
+                                            if let Some(tg_id) = entity.tg_id {
+                                                bot.send_message(
+                                                    UserId(tg_id),
+                                                    format!(
+                                                        "У вас есть места на {person_number} персон?"
+                                                    ),
+                                                )
+                                                    .reply_markup(make_request_answer_keyboard())
+                                                    .await?;
+                                            }
                                         }
                                         None => {
                                             if let Some(mut booking_info) =

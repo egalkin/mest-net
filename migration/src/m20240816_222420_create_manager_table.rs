@@ -14,9 +14,9 @@ impl MigrationTrait for Migration {
                     .table(Manager::Table)
                     .if_not_exists()
                     .col(pk_auto(Manager::Id))
-                    .col(integer(Manager::TgId))
+                    .col(big_unsigned_null(Manager::TgId))
                     .col(string(Manager::Token))
-                    .col(integer_null(Manager::RestaurantId))
+                    .col(integer(Manager::RestaurantId))
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-manager-restaurant_id")

@@ -1,5 +1,9 @@
-use crate::entity::prelude::Restaurant;
-use sea_orm::{ConnectOptions, Database, DatabaseConnection, EntityTrait};
+use crate::entity::manager::Column;
+use crate::entity::prelude::{Manager, Restaurant};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait,
+    QueryFilter,
+};
 use std::env;
 
 #[derive(Clone)]
@@ -7,7 +11,9 @@ pub struct DatabaseHandler {
     pub db: DatabaseConnection,
 }
 
-pub type RestaurantModel = crate::entity::restaurant::Model;
+type RestaurantModel = crate::entity::restaurant::Model;
+type ManagerModel = crate::entity::manager::Model;
+type ManagerActiveModel = crate::entity::manager::ActiveModel;
 
 impl DatabaseHandler {
     pub async fn new(uri: String) -> Self {
@@ -28,5 +34,32 @@ impl DatabaseHandler {
             log::error!("Error accessing the database: {:?}", x);
             vec![]
         })
+    }
+
+    pub async fn find_manager_by_token(&self, token: String) -> Option<ManagerModel> {
+        Manager::find()
+            .filter(Column::Token.eq(token))
+            .one(&self.db)
+            .await
+            .unwrap_or_else(|x| {
+                log::error!("Error accessing the database: {:?}", x);
+                None
+            })
+    }
+
+    pub async fn find_manager_by_id(&self, id: i32) -> Option<ManagerModel> {
+        Manager::find_by_id(id)
+            .one(&self.db)
+            .await
+            .unwrap_or_else(|x| {
+                log::error!("Error accessing the database: {:?}", x);
+                None
+            })
+    }
+
+    pub async fn update_manager(&self, manager: ManagerActiveModel) {
+        if let Err(x) = manager.update(&self.db).await {
+            log::error!("Error accessing the database: {:?}", x);
+        }
     }
 }
