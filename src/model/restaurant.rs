@@ -2,28 +2,26 @@ use crate::utils::constants::{DAY_END, MIDNIGHT};
 use crate::utils::distance::calculate_distance;
 use chrono::Weekday::{Fri, Sat, Sun};
 use chrono::{DateTime, Datelike, NaiveTime, Utc};
+use sea_orm::FromJsonQueryResult;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use teloxide::prelude::UserId;
 use teloxide::types::Location;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Restaurant {
-    pub id: u64,
+    pub id: i32,
     pub name: String,
     pub latitude: f64,
     pub longitude: f64,
-    pub token: String,
-    pub manager_id: UserId,
-    pub schedule: Schedule,
     pub maps_url: String,
     pub average_price: String,
     pub segment: String,
     pub kitchen: String,
+    pub schedule: Schedule,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromJsonQueryResult, PartialEq)]
 #[serde(tag = "type", content = "content")]
 pub enum Schedule {
     Regular {
@@ -110,7 +108,7 @@ impl Schedule {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct WorkingTime {
     pub start_time: NaiveTime,
     pub end_time: NaiveTime,

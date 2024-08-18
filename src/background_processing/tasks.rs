@@ -17,8 +17,8 @@ use tokio::task::JoinSet;
 pub(crate) async fn send_mest_check_notification(
     bot: Bot,
     mut rx: Receiver<MestCheckCommand>,
-    restaurants_booking_info: Db<u64, BookingInfo>,
-    restaurant_managers: Db<u64, UserId>,
+    restaurants_booking_info: Db<i32, BookingInfo>,
+    restaurant_managers: Db<i32, UserId>,
 ) {
     while let Some(cmd) = rx.recv().await {
         match cmd {
@@ -92,7 +92,7 @@ pub(crate) async fn wait_for_restaurants_response(
     bot: Bot,
     msg: Message,
     closest_restaurants: Arc<Vec<Arc<Restaurant>>>,
-    restaurants_booking_info: Db<u64, BookingInfo>,
+    restaurants_booking_info: Db<i32, BookingInfo>,
     person_number: u8,
 ) -> HandlerResult {
     let start_time = Utc::now();

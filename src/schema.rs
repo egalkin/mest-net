@@ -231,7 +231,7 @@ async fn receive_person_number(bot: Bot, dialogue: MyDialogue, msg: Message) -> 
 
 async fn receive_location(
     restaurants: Arc<Vec<Arc<Restaurant>>>,
-    restaurants_booking_info: Db<u64, BookingInfo>,
+    restaurants_booking_info: Db<i32, BookingInfo>,
     sender: Sender<MestCheckCommand>,
     bot: Bot,
     dialogue: MyDialogue,
