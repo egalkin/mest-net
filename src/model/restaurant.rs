@@ -133,7 +133,7 @@ impl Display for Restaurant {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<a href=\"{}\">{}</a> - Кухня: {}; Средний чек: {}",
+            "<a href=\"{}\">{}</a> — Кухня: {}; Средний чек: {}",
             self.maps_url, self.name, self.kitchen, self.average_price
         )
     }
