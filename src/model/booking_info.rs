@@ -1,10 +1,11 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local};
 
+#[derive(Debug)]
 pub(crate) struct BookingInfo {
     pub booking_state: u8,
     pub notifications_state: u8,
-    pub booking_request_expiration_times: [DateTime<Utc>; 8],
-    pub booking_expiration_times: [DateTime<Utc>; 8],
+    pub booking_request_expiration_times: [DateTime<Local>; 8],
+    pub booking_expiration_times: [DateTime<Local>; 8],
     pub restaurant_name: String,
 }
 
@@ -19,23 +20,27 @@ impl BookingInfo {
         }
     }
 
-    pub(crate) fn get_booking_request_expiration_time(&self, index: usize) -> &DateTime<Utc> {
+    pub(crate) fn get_booking_request_expiration_time(&self, index: usize) -> &DateTime<Local> {
         &self.booking_request_expiration_times[index]
     }
 
     pub(crate) fn set_booking_request_expiration_time(
         &mut self,
         index: usize,
-        time_to_set: DateTime<Utc>,
+        time_to_set: DateTime<Local>,
     ) {
         self.booking_request_expiration_times[index] = time_to_set
     }
 
-    pub(crate) fn get_booking_expiration_time(&self, index: usize) -> &DateTime<Utc> {
+    pub(crate) fn get_booking_expiration_time(&self, index: usize) -> &DateTime<Local> {
         &self.booking_expiration_times[index]
     }
 
-    pub(crate) fn set_booking_expiration_time(&mut self, index: usize, time_to_set: DateTime<Utc>) {
+    pub(crate) fn set_booking_expiration_time(
+        &mut self,
+        index: usize,
+        time_to_set: DateTime<Local>,
+    ) {
         self.booking_expiration_times[index] = time_to_set
     }
 }

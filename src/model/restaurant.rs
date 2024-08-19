@@ -1,7 +1,7 @@
 use crate::utils::constants::{DAY_END, MIDNIGHT};
 use crate::utils::distance::calculate_distance;
 use chrono::Weekday::{Fri, Sat, Sun};
-use chrono::{DateTime, Datelike, NaiveTime, Utc};
+use chrono::{DateTime, Datelike, Local, NaiveTime};
 use sea_orm::FromJsonQueryResult;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -34,9 +34,9 @@ pub enum Schedule {
 }
 
 impl Schedule {
-    pub fn match_in(&self, passed_date_time: DateTime<Utc>) -> bool {
+    pub fn match_in(&self, passed_date_time: DateTime<Local>) -> bool {
         fn match_in(
-            passed_date_time: DateTime<Utc>,
+            passed_date_time: DateTime<Local>,
             start_time: &NaiveTime,
             end_time: &NaiveTime,
         ) -> bool {
@@ -125,7 +125,7 @@ impl Restaurant {
     }
 
     pub fn is_open(&self) -> bool {
-        self.schedule.match_in(Utc::now())
+        self.schedule.match_in(Local::now())
     }
 }
 
@@ -133,8 +133,8 @@ impl Display for Restaurant {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[{}]({}): Кухня: {}; Средний чек: {}",
-            self.name, self.maps_url, self.kitchen, self.average_price
+            "<a href=\"{}\">{}</a> - Кухня: {}; Средний чек: {}",
+            self.maps_url, self.name, self.kitchen, self.average_price
         )
     }
 }
@@ -159,7 +159,7 @@ mod tests {
     mod schedule_tests {
         use crate::model::restaurant::Schedule::{Regular, WithWeekends};
         use crate::model::restaurant::WorkingTime;
-        use chrono::{DateTime, NaiveTime, TimeZone, Utc};
+        use chrono::{DateTime, Local, NaiveTime, TimeZone, Utc};
 
         #[test]
         fn regular_schedule_one_day_match_in() {
@@ -171,8 +171,8 @@ mod tests {
             };
             let schedule = Regular { working_time };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 1, 9, 0, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 1, 9, 0, 0).unwrap();
 
             assert_eq!(true, schedule.match_in(current_date_time))
         }
@@ -187,8 +187,8 @@ mod tests {
             };
             let schedule = Regular { working_time };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 1, 23, 30, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 1, 23, 30, 0).unwrap();
 
             assert_eq!(false, schedule.match_in(current_date_time))
         }
@@ -203,8 +203,8 @@ mod tests {
             };
             let schedule = Regular { working_time };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 1, 2, 0, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 1, 2, 0, 0).unwrap();
 
             assert_eq!(true, schedule.match_in(current_date_time))
         }
@@ -219,8 +219,8 @@ mod tests {
             };
             let schedule = Regular { working_time };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 1, 4, 0, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 1, 4, 0, 0).unwrap();
 
             assert_eq!(false, schedule.match_in(current_date_time))
         }
@@ -246,8 +246,8 @@ mod tests {
                 weekend_working_time,
             };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 10, 16, 0, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 10, 16, 0, 0).unwrap();
 
             assert_eq!(true, schedule.match_in(current_date_time))
         }
@@ -273,8 +273,8 @@ mod tests {
                 weekend_working_time,
             };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 10, 2, 0, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 10, 2, 0, 0).unwrap();
 
             assert_eq!(false, schedule.match_in(current_date_time))
         }
@@ -300,8 +300,8 @@ mod tests {
                 weekend_working_time,
             };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 12, 0, 30, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 12, 0, 30, 0).unwrap();
 
             assert_eq!(true, schedule.match_in(current_date_time))
         }
@@ -327,8 +327,8 @@ mod tests {
                 weekend_working_time,
             };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 12, 1, 30, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 12, 1, 30, 0).unwrap();
 
             assert_eq!(false, schedule.match_in(current_date_time))
         }
@@ -354,8 +354,8 @@ mod tests {
                 weekend_working_time,
             };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 12, 16, 30, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 12, 16, 30, 0).unwrap();
 
             assert_eq!(true, schedule.match_in(current_date_time))
         }
@@ -381,8 +381,8 @@ mod tests {
                 weekend_working_time,
             };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 13, 5, 30, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 13, 5, 30, 0).unwrap();
 
             assert_eq!(true, schedule.match_in(current_date_time))
         }
@@ -408,8 +408,8 @@ mod tests {
                 weekend_working_time,
             };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 13, 6, 30, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 13, 6, 30, 0).unwrap();
 
             assert_eq!(false, schedule.match_in(current_date_time))
         }
@@ -435,8 +435,8 @@ mod tests {
                 weekend_working_time,
             };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 14, 5, 30, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 14, 5, 30, 0).unwrap();
 
             assert_eq!(true, schedule.match_in(current_date_time))
         }
@@ -462,8 +462,8 @@ mod tests {
                 weekend_working_time,
             };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 14, 6, 30, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 14, 6, 30, 0).unwrap();
 
             assert_eq!(false, schedule.match_in(current_date_time))
         }
@@ -489,8 +489,8 @@ mod tests {
                 weekend_working_time,
             };
 
-            let current_date_time: DateTime<Utc> =
-                Utc.with_ymd_and_hms(2024, 1, 14, 16, 30, 0).unwrap();
+            let current_date_time: DateTime<Local> =
+                Local.with_ymd_and_hms(2024, 1, 14, 16, 30, 0).unwrap();
 
             assert_eq!(true, schedule.match_in(current_date_time))
         }

@@ -7,7 +7,7 @@ use crate::model::state::State::Start;
 use crate::model::{restaurant::Restaurant, state::State, types::*};
 use crate::utils::constants::SEARCH_REQUEST_MESSAGE;
 use crate::utils::keyboard::*;
-use chrono::Utc;
+use chrono::Local;
 use sea_orm::ActiveValue::Set;
 use sea_orm::IntoActiveModel;
 use std::sync::Arc;
@@ -150,8 +150,8 @@ async fn receive_admin_token(
 }
 
 async fn receive_booking_request(
-    restaurants_booking_info: Db<u64, BookingInfo>,
-    managers_restaurant: Db<UserId, u64>,
+    restaurants_booking_info: Db<i32, BookingInfo>,
+    db_handler: DatabaseHandler,
     bot: Bot,
     _dialogue: MyDialogue,
     msg: Message,
@@ -164,17 +164,19 @@ async fn receive_booking_request(
                 if let Ok(person_number) = tokens[tokens.len() - 2].parse::<u8>() {
                     match msg.text() {
                         Some(ans) if ans == "Да" || ans == "Нет" => {
-                            if let Some(manager_id) =
-                                managers_restaurant.get_async(&msg.from().unwrap().id).await
+                            if let Some(manager) = db_handler
+                                .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
+                                .await
                             {
-                                if let Some(mut booking_info) =
-                                    restaurants_booking_info.get_async(&manager_id).await
+                                if let Some(mut booking_info) = restaurants_booking_info
+                                    .get_async(&manager.restaurant_id)
+                                    .await
                                 {
                                     if ans == "Да" {
                                         booking_info.booking_state |= 1 << person_number;
                                         booking_info.set_booking_expiration_time(
                                             (person_number - 1) as usize,
-                                            Utc::now() + Duration::from_secs(2 * 60),
+                                            Local::now() + Duration::from_secs(2 * 60),
                                         );
                                     }
                                     log::info!(

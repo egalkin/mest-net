@@ -6,7 +6,7 @@ use crate::model::types::{Db, HandlerResult};
 use crate::utils::keyboard::make_request_answer_keyboard;
 use anyhow::Result;
 use async_std::task;
-use chrono::Utc;
+use chrono::Local;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -36,7 +36,7 @@ pub(crate) async fn send_mest_check_notification(
                         if booking_info.booking_state & (1 << person_number) != 0 {
                             let booking_expiration_time = booking_info
                                 .get_booking_expiration_time((person_number - 1) as usize);
-                            if Utc::now() > *booking_expiration_time {
+                            if Local::now() > *booking_expiration_time {
                                 booking_info.booking_state &= !(1 << person_number)
                             } else {
                                 continue;
@@ -45,12 +45,12 @@ pub(crate) async fn send_mest_check_notification(
                         let booking_request_expiration_time = booking_info
                             .get_booking_request_expiration_time((person_number - 1) as usize);
                         if booking_info.notifications_state & (1 << person_number) == 0
-                            || Utc::now() > *booking_request_expiration_time
+                            || Local::now() > *booking_request_expiration_time
                         {
                             booking_info.notifications_state |= 1 << person_number;
                             booking_info.set_booking_request_expiration_time(
                                 (person_number - 1) as usize,
-                                Utc::now() + Duration::from_secs(2 * 60),
+                                Local::now() + Duration::from_secs(2 * 60),
                             );
                             {
                                 let id = restaurant.id;
@@ -98,11 +98,11 @@ pub(crate) async fn wait_for_restaurants_response(
     restaurants_booking_info: Db<i32, BookingInfo>,
     person_number: u8,
 ) -> HandlerResult {
-    let start_time = Utc::now();
+    let start_time = Local::now();
     let time_to_finish = start_time + Duration::from_secs(120);
     let mut answered_restaurants = HashSet::<&Restaurant>::new();
     loop {
-        let current_time = Utc::now();
+        let current_time = Local::now();
         if current_time < time_to_finish {
             answered_restaurants.clear();
             let mut no_answers = 0;
@@ -113,7 +113,7 @@ pub(crate) async fn wait_for_restaurants_response(
                     if booking_info.booking_state & (1 << person_number) != 0 {
                         let booking_expiration_time =
                             booking_info.get_booking_expiration_time((person_number - 1) as usize);
-                        if Utc::now() > *booking_expiration_time {
+                        if Local::now() > *booking_expiration_time {
                             booking_info.booking_state &= !(1 << person_number)
                         } else {
                             answered_restaurants.insert(restaurant);
@@ -138,7 +138,7 @@ pub(crate) async fn wait_for_restaurants_response(
     if answered_restaurants.len() != 0 {
         let mut formatted_answer = String::new();
         for restaurant in answered_restaurants {
-            formatted_answer.push_str(&format!("*•* {}\n", restaurant))
+            formatted_answer.push_str(&format!("<b>•</b> {}\n", restaurant))
         }
         bot.send_message(
             msg.chat.id,
@@ -147,7 +147,7 @@ pub(crate) async fn wait_for_restaurants_response(
             ),
         )
         .disable_web_page_preview(true)
-        .parse_mode(ParseMode::MarkdownV2)
+        .parse_mode(ParseMode::Html)
         .await?;
     } else {
         bot.send_message(
