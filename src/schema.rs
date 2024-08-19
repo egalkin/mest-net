@@ -156,30 +156,35 @@ async fn receive_booking_request(
     _dialogue: MyDialogue,
     msg: Message,
 ) -> HandlerResult {
-    let reply_to_message = msg.reply_to_message();
-    match reply_to_message {
-        Some(val) => {
-            if let Some(text) = val.text() {
-                let tokens = text.split_ascii_whitespace().collect::<Vec<&str>>();
-                if let Ok(person_number) = tokens[tokens.len() - 2].parse::<u8>() {
-                    match msg.text() {
-                        Some(ans) if ans == "Да" || ans == "Нет" => {
-                            if let Some(manager) = db_handler
-                                .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
+    if let Some(reply_to_message) = msg.reply_to_message() {
+        if let Some(text) = reply_to_message.text() {
+            if !text.starts_with("У вас есть места на")
+                || reply_to_message.from().unwrap().id == msg.from().unwrap().id
+            {
+                bot.send_message(msg.chat.id, "Выбрано неподходящее сообщение для Reply")
+                    .await?;
+                return Ok(());
+            }
+            let tokens = text.split_ascii_whitespace().collect::<Vec<&str>>();
+            if let Ok(person_number) = tokens[tokens.len() - 2].parse::<u8>() {
+                match msg.text() {
+                    Some(ans) if ans == "Да" || ans == "Нет" => {
+                        if let Some(manager) = db_handler
+                            .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
+                            .await
+                        {
+                            if let Some(mut booking_info) = restaurants_booking_info
+                                .get_async(&manager.restaurant_id)
                                 .await
                             {
-                                if let Some(mut booking_info) = restaurants_booking_info
-                                    .get_async(&manager.restaurant_id)
-                                    .await
-                                {
-                                    if ans == "Да" {
-                                        booking_info.booking_state |= 1 << person_number;
-                                        booking_info.set_booking_expiration_time(
-                                            (person_number - 1) as usize,
-                                            Local::now() + Duration::from_secs(2 * 60),
-                                        );
-                                    }
-                                    log::info!(
+                                if ans == "Да" {
+                                    booking_info.booking_state |= 1 << person_number;
+                                    booking_info.set_booking_expiration_time(
+                                        (person_number - 1) as usize,
+                                        Local::now() + Duration::from_secs(2 * 60),
+                                    );
+                                }
+                                log::info!(
                                             "{} manager with username = {:?} and user_id = {} {} booking request for {} persons",
                                             booking_info.restaurant_name,
                                             msg.from().unwrap().username,
@@ -187,21 +192,19 @@ async fn receive_booking_request(
                                             if ans == "Да" {"approved"} else {"reject"},
                                             person_number
                                     );
-                                    booking_info.notifications_state &= !(1 << person_number);
-                                }
+                                booking_info.notifications_state &= !(1 << person_number);
                             }
                         }
-                        _ => {
-                            bot.send_message(msg.chat.id, "Ответьте Да или Нет").await?;
-                        }
+                    }
+                    _ => {
+                        bot.send_message(msg.chat.id, "Ответьте Да или Нет").await?;
                     }
                 }
             }
         }
-        _ => {
-            bot.send_message(msg.chat.id, "Отправьте ответ исполоьзуя Reply")
-                .await?;
-        }
+    } else {
+        bot.send_message(msg.chat.id, "Отправьте ответ исполоьзуя Reply")
+            .await?;
     }
     Ok(())
 }
