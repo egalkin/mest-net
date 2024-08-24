@@ -1,6 +1,7 @@
 use futures::future::BoxFuture;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use skytable::error::Error;
 use skytable::pool::ConnectionMgrTcp;
 use skytable::{pool, query, Config};
 use std::convert::Infallible;
@@ -24,6 +25,9 @@ where
     /// Returned from [`SkytableStorage::remove_dialogue`].
     #[error("row not found")]
     DialogueNotFound,
+
+    #[error("unexpected error")]
+    UnexpectedError,
 }
 
 pub struct SkytableStorage<S> {
@@ -48,6 +52,14 @@ impl<S> SkytableStorage<S> {
         .unwrap();
         let pool = pool::get_async(32, config).await.unwrap();
         Ok(Arc::new(Self { pool, serializer }))
+    }
+
+    fn log_unexpected_error(chat_id: i64, err: Error) {
+        log::error!(
+            "Unexpected error occurs during fetching dialogue with chat id = {}",
+            chat_id
+        );
+        log::error!("Error description: {:?}", err);
     }
 }
 
@@ -74,8 +86,20 @@ where
                 .await;
 
             match delete_result {
-                Ok(_) => Ok(()),
-                Err(_) => Err(SkytableStorageError::DialogueNotFound),
+                Ok(_) => {
+                    log::info!("Dialogue with chat id = {} successfully deleted", chat_id);
+                    Ok(())
+                }
+                Err(skytable_err) => match skytable_err {
+                    Error::ServerError(111) => {
+                        log::info!("Dialogue with chat id = {} not found", chat_id);
+                        Err(SkytableStorageError::DialogueNotFound)
+                    }
+                    err => {
+                        SkytableStorage::<S>::log_unexpected_error(chat_id, err);
+                        Err(SkytableStorageError::UnexpectedError)
+                    }
+                },
             }
         })
     }
@@ -101,25 +125,39 @@ where
                 .await;
 
             match insert_result {
-                Ok(_) => Ok(()),
-                Err(err) => {
-                    println!("{err}");
-                    let update_result = db
-                        .query_parse::<()>(&query!(
-                            "update mest_net.dialogues set dialogue = ? where chat_id = ?",
-                            &d,
-                            chat_id as u64
-                        ))
-                        .await;
+                Ok(_) => {
+                    log::info!("Dialogue with chat id = {} successfully inserted", chat_id);
+                    Ok(())
+                }
+                Err(skytable_err) => match skytable_err {
+                    Error::ServerError(108) => {
+                        let update_result = db
+                            .query_parse::<()>(&query!(
+                                "update mest_net.dialogues set dialogue = ? where chat_id = ?",
+                                &d,
+                                chat_id as u64
+                            ))
+                            .await;
 
-                    match update_result {
-                        Ok(_) => Ok(()),
-                        Err(err) => {
-                            println!("{err}");
-                            unreachable!()
+                        match update_result {
+                            Ok(_) => {
+                                log::info!(
+                                    "Dialogue with chat id = {} successfully updated",
+                                    chat_id
+                                );
+                                Ok(())
+                            }
+                            Err(err) => {
+                                SkytableStorage::<S>::log_unexpected_error(chat_id, err);
+                                Err(SkytableStorageError::UnexpectedError)
+                            }
                         }
                     }
-                }
+                    err => {
+                        SkytableStorage::<S>::log_unexpected_error(chat_id, err);
+                        Err(SkytableStorageError::UnexpectedError)
+                    }
+                },
             }
         })
     }
@@ -138,11 +176,20 @@ where
                 ))
                 .await
             {
-                Ok(val) => Some(val.0),
-                Err(err) => {
-                    println!("{err}");
-                    None
+                Ok(val) => {
+                    log::info!("Dialogue with chat id = {} successfully fetched", chat_id);
+                    Some(val.0)
                 }
+                Err(skytable_err) => match skytable_err {
+                    Error::ServerError(111) => {
+                        log::info!("Dialogue with chat id = {} not found", chat_id);
+                        None
+                    }
+                    err => {
+                        SkytableStorage::<S>::log_unexpected_error(chat_id, err);
+                        None
+                    }
+                },
             };
 
             dialogue
