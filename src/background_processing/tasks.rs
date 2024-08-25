@@ -59,11 +59,12 @@ pub(crate) async fn send_mest_check_notification(
                                 set.spawn(async move {
                                     match db_handler.find_manager_by_id(id).await {
                                         Some(entity) => {
+                                            let person_noun_form = resolve_person_noun_form(person_number);
                                             if let Some(tg_id) = entity.tg_id {
                                                 bot.send_message(
                                                     UserId(tg_id as u64),
                                                     format!(
-                                                        "У вас есть места на {person_number} персон?"
+                                                        "У вас есть места на {person_number} {person_noun_form}?"
                                                     ),
                                                 )
                                                     .reply_markup(make_request_answer_keyboard())
@@ -135,6 +136,7 @@ pub(crate) async fn wait_for_restaurants_response(
         }
         task::sleep(Duration::from_secs(1)).await;
     }
+    let person_noun_form = resolve_person_noun_form(person_number);
     if answered_restaurants.len() != 0 {
         let mut formatted_answer = String::new();
         for restaurant in answered_restaurants {
@@ -143,7 +145,7 @@ pub(crate) async fn wait_for_restaurants_response(
         bot.send_message(
             msg.chat.id,
             format!(
-                "Список ресторанов, где есть места на {person_number} персон:\n{formatted_answer}"
+                "Список ресторанов, где есть места на {person_number} {person_noun_form}:\n{formatted_answer}"
             ),
         )
         .disable_web_page_preview(true)
@@ -152,9 +154,17 @@ pub(crate) async fn wait_for_restaurants_response(
     } else {
         bot.send_message(
             msg.chat.id,
-            format!("К сожалению, мест на {person_number} персон нет"),
+            format!("К сожалению, мест на {person_number} {person_noun_form} нет"),
         )
         .await?;
     }
     Ok(())
+}
+
+fn resolve_person_noun_form<'a>(person_number: u8) -> &'a str {
+    match person_number {
+        1 => "персону",
+        2 | 3 | 4 => "персоны",
+        _ => "персон",
+    }
 }
