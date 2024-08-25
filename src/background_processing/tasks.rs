@@ -86,7 +86,7 @@ pub(crate) async fn send_mest_check_notification(
                         }
                     }
                 }
-                while let Some(_) = set.join_next().await {}
+                while (set.join_next().await).is_some() {}
             }
         }
     }
@@ -137,7 +137,7 @@ pub(crate) async fn wait_for_restaurants_response(
         task::sleep(Duration::from_secs(1)).await;
     }
     let person_noun_form = resolve_person_noun_form(person_number);
-    if answered_restaurants.len() != 0 {
+    if !answered_restaurants.is_empty() {
         let mut formatted_answer = String::new();
         for restaurant in answered_restaurants {
             formatted_answer.push_str(&format!("<b>•</b> {}\n", restaurant))
@@ -164,7 +164,7 @@ pub(crate) async fn wait_for_restaurants_response(
 fn resolve_person_noun_form<'a>(person_number: u8) -> &'a str {
     match person_number {
         1 => "персону",
-        2 | 3 | 4 => "персоны",
+        2..=4 => "персоны",
         _ => "персон",
     }
 }

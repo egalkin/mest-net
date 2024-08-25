@@ -42,8 +42,8 @@ impl Schedule {
         ) -> bool {
             let time = passed_date_time.time();
             if start_time > end_time {
-                return (time >= *start_time && time <= *DAY_END)
-                    || (time >= *MIDNIGHT && time <= *end_time);
+                (time >= *start_time && time <= *DAY_END)
+                    || (time >= *MIDNIGHT && time <= *end_time)
             } else {
                 time >= *start_time && time <= *end_time
             }
@@ -159,7 +159,7 @@ mod tests {
     mod schedule_tests {
         use crate::model::restaurant::Schedule::{Regular, WithWeekends};
         use crate::model::restaurant::WorkingTime;
-        use chrono::{DateTime, Local, NaiveTime, TimeZone, Utc};
+        use chrono::{DateTime, Local, NaiveTime, TimeZone};
 
         #[test]
         fn regular_schedule_one_day_match_in() {
@@ -174,7 +174,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 1, 9, 0, 0).unwrap();
 
-            assert_eq!(true, schedule.match_in(current_date_time))
+            assert!(schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -190,7 +190,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 1, 23, 30, 0).unwrap();
 
-            assert_eq!(false, schedule.match_in(current_date_time))
+            assert!(!schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -206,7 +206,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 1, 2, 0, 0).unwrap();
 
-            assert_eq!(true, schedule.match_in(current_date_time))
+            assert!(schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -222,7 +222,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 1, 4, 0, 0).unwrap();
 
-            assert_eq!(false, schedule.match_in(current_date_time))
+            assert!(!schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -249,7 +249,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 10, 16, 0, 0).unwrap();
 
-            assert_eq!(true, schedule.match_in(current_date_time))
+            assert!(schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -276,7 +276,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 10, 2, 0, 0).unwrap();
 
-            assert_eq!(false, schedule.match_in(current_date_time))
+            assert!(!schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -303,7 +303,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 12, 0, 30, 0).unwrap();
 
-            assert_eq!(true, schedule.match_in(current_date_time))
+            assert!(schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -330,7 +330,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 12, 1, 30, 0).unwrap();
 
-            assert_eq!(false, schedule.match_in(current_date_time))
+            assert!(!schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -357,7 +357,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 12, 16, 30, 0).unwrap();
 
-            assert_eq!(true, schedule.match_in(current_date_time))
+            assert!(schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -384,7 +384,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 13, 5, 30, 0).unwrap();
 
-            assert_eq!(true, schedule.match_in(current_date_time))
+            assert!(schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -411,7 +411,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 13, 6, 30, 0).unwrap();
 
-            assert_eq!(false, schedule.match_in(current_date_time))
+            assert!(!schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -438,7 +438,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 14, 5, 30, 0).unwrap();
 
-            assert_eq!(true, schedule.match_in(current_date_time))
+            assert!(schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -465,7 +465,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 14, 6, 30, 0).unwrap();
 
-            assert_eq!(false, schedule.match_in(current_date_time))
+            assert!(!schedule.match_in(current_date_time))
         }
 
         #[test]
@@ -492,7 +492,7 @@ mod tests {
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 14, 16, 30, 0).unwrap();
 
-            assert_eq!(true, schedule.match_in(current_date_time))
+            assert!(schedule.match_in(current_date_time))
         }
     }
 }
