@@ -116,25 +116,29 @@ async fn receive_admin_token(
 ) -> HandlerResult {
     match msg.text() {
         Some(token) => match db_handler.find_manager_by_token(token.to_string()).await {
-            Some(entity) => {
-                let mut active_entity = entity.into_active_model();
-                if let Some(_) = db_handler
+            Some(token_manager) => {
+                let token_manager_id = token_manager.id;
+                let mut token_manager = token_manager.into_active_model();
+                match db_handler
                     .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
                     .await
                 {
-                    bot.send_message(
-                        msg.chat.id,
-                        "Нельзя быть администратором более чем в одном ресторане",
-                    )
-                    .await?;
-                } else {
-                    if let None = active_entity.tg_id.unwrap() {
-                        active_entity.tg_id = Set(Some(msg.from().unwrap().id.0 as i64));
-                        db_handler.update_manager(active_entity).await?;
-                    }
-                    bot.send_message(msg.chat.id, "Ожидайте запросов на бронирование")
+                    Some(tg_id_manager) if token_manager_id != tg_id_manager.id => {
+                        bot.send_message(
+                            msg.chat.id,
+                            "Нельзя быть администратором более чем в одном ресторане",
+                        )
                         .await?;
-                    dialogue.update(State::WaitingForRequests).await?
+                    }
+                    _ => {
+                        if let None = token_manager.tg_id.unwrap() {
+                            token_manager.tg_id = Set(Some(msg.from().unwrap().id.0 as i64));
+                            db_handler.update_manager(token_manager).await?;
+                        }
+                        bot.send_message(msg.chat.id, "Ожидайте запросов на бронирование")
+                            .await?;
+                        dialogue.update(State::WaitingForRequests).await?
+                    }
                 }
             }
             _ => {
