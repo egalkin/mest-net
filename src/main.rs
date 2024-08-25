@@ -17,9 +17,8 @@ use model::{booking_info::BookingInfo, restaurant::Restaurant, state::State};
 use schema::schema;
 
 use log::LevelFilter;
-use log4rs::append::file::FileAppender;
+use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Config, Root};
-use log4rs::encode::pattern::PatternEncoder;
 use std::sync::Arc;
 use teloxide::dispatching::dialogue::serializer::Bincode;
 use teloxide::dispatching::dialogue::{ErasedStorage, Storage};
@@ -34,13 +33,11 @@ async fn main() -> Result<()> {
     dotenv().ok();
     let db_handler = DatabaseHandler::from_env().await;
 
-    let logfile = FileAppender::builder()
-        .encoder(Box::new(PatternEncoder::new("{d} - {l} - {m}\n")))
-        .build("log/output.log")?;
+    let stdout = ConsoleAppender::builder().build();
 
     let config = Config::builder()
-        .appender(Appender::builder().build("logfile", Box::new(logfile)))
-        .build(Root::builder().appender("logfile").build(LevelFilter::Info))?;
+        .appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .build(Root::builder().appender("stdout").build(LevelFilter::Info))?;
 
     log4rs::init_config(config)?;
 
