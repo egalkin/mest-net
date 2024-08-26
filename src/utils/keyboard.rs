@@ -9,7 +9,7 @@ pub fn make_location_keyboard() -> KeyboardMarkup {
     let row = vec![location_button];
     keyboard.push(row);
     let mut markup = KeyboardMarkup::new(keyboard);
-    markup.resize_keyboard = Option::from(true);
+    markup.resize_keyboard = true;
     markup
 }
 
@@ -42,6 +42,6 @@ fn make_keyboard(variants: Vec<&str>) -> KeyboardMarkup {
     }
 
     let mut markup = KeyboardMarkup::new(keyboard);
-    markup.resize_keyboard = Option::from(true);
+    markup.resize_keyboard = true;
     markup
 }

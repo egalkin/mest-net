@@ -3,6 +3,7 @@ use crate::model::booking_info::BookingInfo;
 use crate::model::commands::MestCheckCommand;
 use crate::model::restaurant::Restaurant;
 use crate::model::types::{Db, HandlerResult};
+use crate::utils::constants::DISABLED_LINKS_PREVIEW;
 use crate::utils::keyboard::make_request_answer_keyboard;
 use anyhow::Result;
 use async_std::task;
@@ -148,7 +149,7 @@ pub(crate) async fn wait_for_restaurants_response(
                 "Список ресторанов, где есть места на {person_number} {person_noun_form}:\n{formatted_answer}"
             ),
         )
-        .disable_web_page_preview(true)
+        .link_preview_options(DISABLED_LINKS_PREVIEW)
         .parse_mode(ParseMode::Html)
         .await?;
     } else {
