@@ -120,7 +120,7 @@ async fn receive_admin_token(
                 let token_manager_id = token_manager.id;
                 let mut token_manager = token_manager.into_active_model();
                 match db_handler
-                    .find_manager_by_tg_id(msg.from.as_ref().unwrap().id.0 as i64)
+                    .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
                     .await
                 {
                     Some(tg_id_manager) if token_manager_id != tg_id_manager.id => {
@@ -132,7 +132,7 @@ async fn receive_admin_token(
                     }
                     _ => {
                         if token_manager.tg_id.unwrap().is_none() {
-                            token_manager.tg_id = Set(Some(msg.from.as_ref().unwrap().id.0 as i64));
+                            token_manager.tg_id = Set(Some(msg.from().unwrap().id.0 as i64));
                             db_handler.update_manager(token_manager).await?;
                         }
                         bot.send_message(msg.chat.id, "Ожидайте запросов на бронирование")
@@ -163,7 +163,7 @@ async fn receive_booking_request(
     if let Some(reply_to_message) = msg.reply_to_message() {
         if let Some(text) = reply_to_message.text() {
             if !text.starts_with("У вас есть места на")
-                || reply_to_message.from.as_ref().unwrap().id == msg.from.as_ref().unwrap().id
+                || reply_to_message.from().unwrap().id == msg.from().unwrap().id
             {
                 bot.send_message(msg.chat.id, "Выбрано неподходящее сообщение для Reply")
                     .await?;
@@ -174,7 +174,7 @@ async fn receive_booking_request(
                 match msg.text() {
                     Some(ans) if ans == "Да" || ans == "Нет" => {
                         if let Some(manager) = db_handler
-                            .find_manager_by_tg_id(msg.from.as_ref().unwrap().id.0 as i64)
+                            .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
                             .await
                         {
                             if let Some(mut booking_info) = restaurants_booking_info
@@ -191,8 +191,8 @@ async fn receive_booking_request(
                                 log::info!(
                                             "{} manager with username = {:?} and user_id = {} {} booking request for {} persons",
                                             booking_info.restaurant_name,
-                                            msg.from.as_ref().unwrap().username,
-                                            msg.from.as_ref().unwrap().id,
+                                            msg.from().unwrap().username,
+                                            msg.from().unwrap().id,
                                             if ans == "Да" {"approved"} else {"reject"},
                                             person_number
                                     );
@@ -301,8 +301,8 @@ async fn receive_location(
             } else {
                 log::info!(
                     "User with username = {:?} and user_id = {} send booking request for {} persons at location with latitude = {} and longitude = {}",
-                    msg.from.as_ref().unwrap().username,
-                    msg.from.as_ref().unwrap().id,
+                    msg.from().unwrap().username,
+                    msg.from().unwrap().id,
                     person_number,
                     location.latitude,
                     location.longitude
@@ -313,7 +313,7 @@ async fn receive_location(
         }
         None => {
             bot.send_message(
-                msg.from.as_ref().unwrap().id,
+                msg.from().unwrap().id,
                 "Отправьте локацию для поиска",
             )
             .await?;
