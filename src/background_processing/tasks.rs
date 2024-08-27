@@ -3,10 +3,12 @@ use crate::model::booking_info::BookingInfo;
 use crate::model::commands::MestCheckCommand;
 use crate::model::restaurant::Restaurant;
 use crate::model::types::{Db, HandlerResult};
+use crate::utils::constants::{BOOKING_REQUEST_EXPIRATION_MINUTES, NO_ANSWER_PENALTY};
 use crate::utils::keyboard::make_request_answer_keyboard;
 use anyhow::Result;
 use async_std::task;
 use chrono::Local;
+use sea_orm::{IntoActiveModel, Set};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -44,14 +46,34 @@ pub(crate) async fn send_mest_check_notification(
                         }
                         let booking_request_expiration_time = booking_info
                             .get_booking_request_expiration_time((person_number - 1) as usize);
+                        let request_expired =
+                            booking_info.notifications_state & (1 << person_number) != 0
+                                && Local::now() > *booking_request_expiration_time;
+                        println!(
+                            "{}, {}, {}",
+                            booking_info.notifications_state & (1 << person_number),
+                            Local::now(),
+                            *booking_request_expiration_time
+                        );
                         if booking_info.notifications_state & (1 << person_number) == 0
-                            || Local::now() > *booking_request_expiration_time
+                            || request_expired
                         {
                             booking_info.notifications_state |= 1 << person_number;
                             booking_info.set_booking_request_expiration_time(
                                 (person_number - 1) as usize,
-                                Local::now() + Duration::from_secs(2 * 60),
+                                Local::now()
+                                    + Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60),
                             );
+                            if request_expired {
+                                if let Some(restaurant) =
+                                    db_handler.find_restaurant_by_id(restaurant.id).await
+                                {
+                                    let current_score = restaurant.score;
+                                    let mut restaurant = restaurant.into_active_model();
+                                    restaurant.score = Set(current_score - NO_ANSWER_PENALTY);
+                                    let _ = db_handler.update_restaurant(restaurant).await;
+                                }
+                            }
                             {
                                 let id = restaurant.id;
                                 let db_handler = db_handler.clone();
@@ -95,12 +117,13 @@ pub(crate) async fn send_mest_check_notification(
 pub(crate) async fn wait_for_restaurants_response(
     bot: Bot,
     msg: Message,
+    db_handler: DatabaseHandler,
     closest_restaurants: Arc<Vec<Arc<Restaurant>>>,
     restaurants_booking_info: Db<i32, BookingInfo>,
     person_number: u8,
 ) -> HandlerResult {
     let start_time = Local::now();
-    let time_to_finish = start_time + Duration::from_secs(120);
+    let time_to_finish = start_time + Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60);
     let mut answered_restaurants = HashSet::<&Restaurant>::new();
     loop {
         let current_time = Local::now();
@@ -138,6 +161,13 @@ pub(crate) async fn wait_for_restaurants_response(
     }
     let person_noun_form = resolve_person_noun_form(person_number);
     if !answered_restaurants.is_empty() {
+        let answered_restaurant_ids: Vec<i32> = answered_restaurants
+            .into_iter()
+            .map(|restaurant| restaurant.id)
+            .collect();
+        let answered_restaurants = db_handler
+            .find_restaurants_by_ids(answered_restaurant_ids)
+            .await;
         let mut formatted_answer = String::new();
         for restaurant in answered_restaurants {
             formatted_answer.push_str(&format!("<b>•</b> {}\n", restaurant))

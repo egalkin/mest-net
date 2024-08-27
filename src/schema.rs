@@ -5,6 +5,10 @@ use crate::model::commands::BotCommand;
 use crate::model::commands::MestCheckCommand;
 use crate::model::state::State::Start;
 use crate::model::{restaurant::Restaurant, state::State, types::*};
+use crate::utils::constants::BOOKING_EXPIRATION_MINUTES;
+use crate::utils::constants::IN_TIME_ANSWER_BONUS;
+use crate::utils::constants::NOT_IN_TIME_ANSWER_PENALTY;
+use crate::utils::constants::NO_ANSWER_PENALTY;
 use crate::utils::constants::SEARCH_REQUEST_MESSAGE;
 use crate::utils::keyboard::*;
 use chrono::Local;
@@ -185,8 +189,28 @@ async fn receive_booking_request(
                                     booking_info.booking_state |= 1 << person_number;
                                     booking_info.set_booking_expiration_time(
                                         (person_number - 1) as usize,
-                                        Local::now() + Duration::from_secs(2 * 60),
+                                        Local::now()
+                                            + Duration::from_secs(BOOKING_EXPIRATION_MINUTES * 60),
                                     );
+                                }
+                                if let Some(restaurant) = db_handler
+                                    .find_restaurant_by_id(manager.restaurant_id)
+                                    .await
+                                {
+                                    let booking_request_expiration_time = booking_info
+                                        .get_booking_request_expiration_time(
+                                            (person_number - 1) as usize,
+                                        );
+                                    let current_score_value = restaurant.score;
+                                    let mut restaurant = restaurant.into_active_model();
+                                    if Local::now() > *booking_request_expiration_time {
+                                        restaurant.score =
+                                            Set(current_score_value - NOT_IN_TIME_ANSWER_PENALTY);
+                                    } else {
+                                        restaurant.score =
+                                            Set(current_score_value + IN_TIME_ANSWER_BONUS);
+                                    }
+                                    db_handler.update_restaurant(restaurant).await?;
                                 }
                                 log::info!(
                                             "{} manager with username = {:?} and user_id = {} {} booking request for {} persons",
@@ -253,6 +277,7 @@ async fn receive_location(
     restaurants: Arc<Vec<Arc<Restaurant>>>,
     restaurants_booking_info: Db<i32, BookingInfo>,
     sender: Sender<MestCheckCommand>,
+    db_handler: DatabaseHandler,
     bot: Bot,
     dialogue: MyDialogue,
     person_number: u8,
@@ -284,6 +309,7 @@ async fn receive_location(
                     wait_for_restaurants_response(
                         bot,
                         msg,
+                        db_handler.clone(),
                         closest_restaurants,
                         restaurants_booking_info,
                         person_number,
@@ -312,11 +338,8 @@ async fn receive_location(
             dialogue.exit().await?;
         }
         None => {
-            bot.send_message(
-                msg.from().unwrap().id,
-                "Отправьте локацию для поиска",
-            )
-            .await?;
+            bot.send_message(msg.from().unwrap().id, "Отправьте локацию для поиска")
+                .await?;
         }
     }
 
