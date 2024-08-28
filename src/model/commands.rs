@@ -1,5 +1,3 @@
-use crate::model::restaurant::Restaurant;
-use std::sync::Arc;
 use teloxide::utils::command::BotCommands;
 
 #[derive(BotCommands, Clone)]
@@ -16,6 +14,7 @@ pub(crate) enum BotCommand {
 pub(crate) enum MestCheckCommand {
     Check {
         person_number: u8,
-        restaurants: Arc<Vec<Arc<Restaurant>>>,
+        longitude: f64,
+        latitude: f64,
     },
 }

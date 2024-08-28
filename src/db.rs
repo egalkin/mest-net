@@ -2,8 +2,8 @@ use crate::entity::manager::{self};
 use crate::entity::prelude::{Manager, Restaurant};
 use crate::entity::restaurant;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbErr,
-    EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
+    ActiveModelTrait, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbBackend, DbErr,
+    EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Statement,
 };
 use std::env;
 
@@ -58,6 +58,28 @@ impl DatabaseHandler {
                 log::error!("Error accessing the database: {:?}", x);
                 None
             })
+    }
+
+    pub async fn find_closest_restaurants(
+        &self,
+        longitude: f64,
+        latitude: f64,
+    ) -> Vec<RestaurantModel> {
+        Restaurant::find()
+            .from_raw_sql(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                r#"select * from restaurant r where ST_DWithin(r.geo_tag, ST_MakePoint($1, $2)::geography, $3) order by score desc"#,
+                [longitude.into(), latitude.into(), 1000.into()],
+            ))
+            .all(&self.db)
+            .await
+            .unwrap_or_else(|x| {
+                log::error!("Error accessing the database: {:?}", x);
+                vec![]
+            })
+            .into_iter()
+            .filter(|restaurant| restaurant.is_open())
+            .collect()
     }
 
     pub async fn count_restaurants(&self) -> u64 {

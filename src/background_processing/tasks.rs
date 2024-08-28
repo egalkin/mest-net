@@ -1,7 +1,7 @@
 use crate::db::DatabaseHandler;
+use crate::entity::restaurant;
 use crate::model::booking_info::BookingInfo;
 use crate::model::commands::MestCheckCommand;
-use crate::model::restaurant::Restaurant;
 use crate::model::types::{Db, HandlerResult};
 use crate::utils::constants::{BOOKING_REQUEST_EXPIRATION_MINUTES, NO_ANSWER_PENALTY};
 use crate::utils::keyboard::make_request_answer_keyboard;
@@ -10,7 +10,6 @@ use async_std::task;
 use chrono::Local;
 use sea_orm::{IntoActiveModel, Set};
 use std::collections::HashSet;
-use std::sync::Arc;
 use std::time::Duration;
 use teloxide::prelude::*;
 use teloxide::types::ParseMode;
@@ -27,10 +26,15 @@ pub(crate) async fn send_mest_check_notification(
         match cmd {
             MestCheckCommand::Check {
                 person_number,
-                restaurants,
+                longitude,
+                latitude,
             } => {
+                let restaurants = db_handler
+                    .find_closest_restaurants(longitude, latitude)
+                    .await;
                 let mut set: JoinSet<Result<()>> = JoinSet::new();
-                for restaurant in &*restaurants {
+                for restaurant in restaurants {
+                    let restaurant_id = restaurant.id;
                     let bot = bot.clone();
                     if let Some(mut booking_info) =
                         restaurants_booking_info.get_async(&restaurant.id).await
@@ -49,12 +53,6 @@ pub(crate) async fn send_mest_check_notification(
                         let request_expired =
                             booking_info.notifications_state & (1 << person_number) != 0
                                 && Local::now() > *booking_request_expiration_time;
-                        println!(
-                            "{}, {}, {}",
-                            booking_info.notifications_state & (1 << person_number),
-                            Local::now(),
-                            *booking_request_expiration_time
-                        );
                         if booking_info.notifications_state & (1 << person_number) == 0
                             || request_expired
                         {
@@ -65,21 +63,16 @@ pub(crate) async fn send_mest_check_notification(
                                     + Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60),
                             );
                             if request_expired {
-                                if let Some(restaurant) =
-                                    db_handler.find_restaurant_by_id(restaurant.id).await
-                                {
-                                    let current_score = restaurant.score;
-                                    let mut restaurant = restaurant.into_active_model();
-                                    restaurant.score = Set(current_score - NO_ANSWER_PENALTY);
-                                    let _ = db_handler.update_restaurant(restaurant).await;
-                                }
+                                let current_score = restaurant.score;
+                                let mut restaurant = restaurant.into_active_model();
+                                restaurant.score = Set(current_score - NO_ANSWER_PENALTY);
+                                let _ = db_handler.update_restaurant(restaurant).await;
                             }
                             {
-                                let id = restaurant.id;
                                 let db_handler = db_handler.clone();
                                 let restaurants_booking_info = restaurants_booking_info.clone();
                                 set.spawn(async move {
-                                    match db_handler.find_manager_by_id(id).await {
+                                    match db_handler.find_manager_by_id(restaurant_id).await {
                                         Some(entity) => {
                                             let person_noun_form = resolve_person_noun_form(person_number);
                                             if let Some(tg_id) = entity.tg_id {
@@ -95,7 +88,7 @@ pub(crate) async fn send_mest_check_notification(
                                         }
                                         None => {
                                             if let Some(mut booking_info) =
-                                                restaurants_booking_info.get_async(&id).await
+                                                restaurants_booking_info.get_async(&restaurant_id).await
                                             {
                                                 booking_info.notifications_state &=
                                                     !(1 << person_number);
@@ -118,13 +111,18 @@ pub(crate) async fn wait_for_restaurants_response(
     bot: Bot,
     msg: Message,
     db_handler: DatabaseHandler,
-    closest_restaurants: Arc<Vec<Arc<Restaurant>>>,
+    longitude: f64,
+    latitude: f64,
     restaurants_booking_info: Db<i32, BookingInfo>,
     person_number: u8,
 ) -> HandlerResult {
     let start_time = Local::now();
     let time_to_finish = start_time + Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60);
-    let mut answered_restaurants = HashSet::<&Restaurant>::new();
+    let closest_restaurants: Vec<restaurant::Model> = db_handler
+        .find_closest_restaurants(longitude, latitude)
+        .await;
+    let mut answered_restaurants: HashSet<&restaurant::Model> =
+        HashSet::<&restaurant::Model>::new();
     loop {
         let current_time = Local::now();
         if current_time < time_to_finish {

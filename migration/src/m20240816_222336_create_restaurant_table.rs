@@ -13,22 +13,39 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(pk_auto(Restaurant::Id))
                     .col(string(Restaurant::Name))
-                    .col(double(Restaurant::Latitude))
-                    .col(double(Restaurant::Longitude))
                     .col(string(Restaurant::MapsUrl))
                     .col(string(Restaurant::AveragePrice))
                     .col(string(Restaurant::Segment))
                     .col(string(Restaurant::Kitchen))
                     .col(json(Restaurant::Schedule))
+                    .col(double(Restaurant::Score).default(100.0))
                     .to_owned(),
             )
-            .await
+            .await?;
+
+        let db = manager.get_connection();
+
+        db.execute_unprepared(
+            "ALTER TABLE restaurant ADD geo_tag geography NOT NULL"
+        ).await?;
+
+        db.execute_unprepared(
+            "CREATE INDEX restaurant_geo_tag_index ON restaurant USING gist(geo_tag)"
+        ).await?;
+
+        Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .drop_table(Table::drop().table(Restaurant::Table).to_owned())
-            .await
+            .await?;
+
+        manager.get_connection().execute_unprepared(
+            "DROP INDEX IF EXISTS restaurant_geo_tag_index"
+        ).await?;
+
+        Ok(())
     }
 }
 
@@ -38,11 +55,10 @@ enum Restaurant {
     Table,
     Id,
     Name,
-    Latitude,
-    Longitude,
     MapsUrl,
     AveragePrice,
     Segment,
     Kitchen,
-    Schedule
+    Schedule,
+    Score
 }

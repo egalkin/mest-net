@@ -1,5 +1,5 @@
 insert into restaurant values
-	(1, 'Напарах',  60.000142, 30.299833, 'https://yandex.ru/maps/-/CDcLmM4d', '1000-1100 ₽', '₽₽', 'Европейская, русская',
+	(1, 'Напарах', 'https://yandex.ru/maps/-/CDcLmM4d', '1000-1100 ₽', '₽₽', 'Европейская, русская',
 	'{
       "type": "Regular",
       "content": {
@@ -8,10 +8,12 @@ insert into restaurant values
           "end_time": "23:00:00.0"
         }
       }
-    }');
+    }',
+    100,
+    ST_MakePoint(30.299833, 60.000142));
 
 insert into restaurant values
-	(2, 'Brasserie Kriek',  60.002264, 30.299903, 'https://yandex.ru/maps/-/CDcLNL7D', '700–1500 ₽', '₽₽', 'Европейская',
+	(2, 'Brasserie Kriek', 'https://yandex.ru/maps/-/CDcLNL7D', '700–1500 ₽', '₽₽', 'Европейская',
 	'
     {
       "type": "WithWeekends",
@@ -25,7 +27,9 @@ insert into restaurant values
           "end_time": "02:00:00.0"
         }
       }
-    }');
+    }',
+    100,
+    ST_MakePoint(30.299903, 60.002264));
 
 insert into manager values
     (1, null, 'Mama', 1),

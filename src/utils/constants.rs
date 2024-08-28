@@ -2,7 +2,6 @@ use chrono::NaiveTime;
 use lazy_static::lazy_static;
 
 pub const SEARCH_REQUEST_MESSAGE: &str = "Найти места";
-pub const EARTH_RADIUS: f64 = 6371.0;
 pub const BOOKING_EXPIRATION_MINUTES: u64 = 5;
 pub const BOOKING_REQUEST_EXPIRATION_MINUTES: u64 = 2;
 pub const IN_TIME_ANSWER_BONUS: f64 = 1.0;

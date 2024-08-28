@@ -4,7 +4,7 @@ use crate::model::booking_info::BookingInfo;
 use crate::model::commands::BotCommand;
 use crate::model::commands::MestCheckCommand;
 use crate::model::state::State::Start;
-use crate::model::{restaurant::Restaurant, state::State, types::*};
+use crate::model::{state::State, types::*};
 use crate::utils::constants::BOOKING_EXPIRATION_MINUTES;
 use crate::utils::constants::IN_TIME_ANSWER_BONUS;
 use crate::utils::constants::NOT_IN_TIME_ANSWER_PENALTY;
@@ -13,7 +13,6 @@ use crate::utils::keyboard::*;
 use chrono::Local;
 use sea_orm::ActiveValue::Set;
 use sea_orm::IntoActiveModel;
-use std::sync::Arc;
 use std::time::Duration;
 use teloxide::dispatching::dialogue::ErasedStorage;
 use teloxide::types::{ParseMode, ReplyMarkup};
@@ -281,7 +280,6 @@ async fn receive_person_number(bot: Bot, dialogue: MyDialogue, msg: Message) -> 
 }
 
 async fn receive_location(
-    restaurants: Arc<Vec<Arc<Restaurant>>>,
     restaurants_booking_info: Db<i32, BookingInfo>,
     sender: Sender<MestCheckCommand>,
     db_handler: DatabaseHandler,
@@ -292,15 +290,6 @@ async fn receive_location(
 ) -> HandlerResult {
     match msg.location() {
         Some(location) => {
-            let closest_restaurants: Arc<Vec<Arc<Restaurant>>> = Arc::new(
-                restaurants
-                    .iter()
-                    .filter(|restaurant| restaurant.distance_to(location) <= 1.0)
-                    .filter(|restaurant| restaurant.is_open())
-                    .cloned()
-                    .collect(),
-            );
-
             bot.send_message(
                 msg.chat.id,
                 "В ближайшие к вам рестораны был отправлен запрос, ожидайте ответа",
@@ -311,13 +300,15 @@ async fn receive_location(
             {
                 let bot = bot.clone();
                 let msg = msg.clone();
-                let closest_restaurants = closest_restaurants.clone();
+                let longitude = location.longitude;
+                let latitude = location.latitude;
                 tokio::spawn(async move {
                     wait_for_restaurants_response(
                         bot,
                         msg,
                         db_handler.clone(),
-                        closest_restaurants,
+                        longitude,
+                        latitude,
                         restaurants_booking_info,
                         person_number,
                     )
@@ -327,7 +318,8 @@ async fn receive_location(
 
             let cmd = MestCheckCommand::Check {
                 person_number,
-                restaurants: closest_restaurants.clone(),
+                longitude: location.longitude,
+                latitude: location.latitude,
             };
             if let Err(err) = sender.send(cmd).await {
                 log::error!("{err}")

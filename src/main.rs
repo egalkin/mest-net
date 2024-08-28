@@ -12,7 +12,7 @@ use crate::model::commands::{BotCommand, MestCheckCommand};
 use anyhow::Result;
 use dotenv::dotenv;
 use model::types::*;
-use model::{booking_info::BookingInfo, restaurant::Restaurant, state::State};
+use model::{booking_info::BookingInfo, state::State};
 
 use schema::schema;
 
@@ -43,20 +43,13 @@ async fn main() -> Result<()> {
 
     log::info!("Starting Mest Net bot...");
 
-    let restaurants: Arc<Vec<Arc<Restaurant>>> = Arc::new(
-        db_handler
-            .get_all_restaurants()
-            .await
-            .iter()
-            .map(|restaurant_model| Arc::new(restaurant_model.into()))
-            .collect(),
-    );
+    let restaurants = db_handler.get_all_restaurants().await;
     let restaurants_number = db_handler.count_restaurants().await;
     let (tx, rx) = mpsc::channel::<MestCheckCommand>(32);
 
     let restaurants_booking_info: Db<i32, BookingInfo> = Arc::new(scc::HashMap::new());
 
-    for restaurant in &*restaurants {
+    for restaurant in restaurants {
         let _ = restaurants_booking_info
             .insert(restaurant.id, BookingInfo::new(restaurant.name.clone()));
     }
@@ -85,7 +78,6 @@ async fn main() -> Result<()> {
         .dependencies(dptree::deps![
             db_handler.clone(),
             skytable_storage.clone(),
-            restaurants.clone(),
             restaurants_booking_info.clone(),
             tx.clone(),
             restaurants_number
