@@ -3,7 +3,7 @@ use crate::entity::prelude::{Manager, Restaurant};
 use crate::entity::restaurant;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbErr,
-    EntityTrait, QueryFilter, QueryOrder,
+    EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
 };
 use std::env;
 
@@ -57,6 +57,16 @@ impl DatabaseHandler {
             .unwrap_or_else(|x| {
                 log::error!("Error accessing the database: {:?}", x);
                 None
+            })
+    }
+
+    pub async fn count_restaurants(&self) -> u64 {
+        Restaurant::find()
+            .count(&self.db)
+            .await
+            .unwrap_or_else(|x| {
+                log::error!("Error accessing the database: {:?}", x);
+                0
             })
     }
 

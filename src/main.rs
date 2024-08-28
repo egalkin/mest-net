@@ -51,6 +51,7 @@ async fn main() -> Result<()> {
             .map(|restaurant_model| Arc::new(restaurant_model.into()))
             .collect(),
     );
+    let restaurants_number = db_handler.count_restaurants().await;
     let (tx, rx) = mpsc::channel::<MestCheckCommand>(32);
 
     let restaurants_booking_info: Db<i32, BookingInfo> = Arc::new(scc::HashMap::new());
@@ -86,7 +87,8 @@ async fn main() -> Result<()> {
             skytable_storage.clone(),
             restaurants.clone(),
             restaurants_booking_info.clone(),
-            tx.clone()
+            tx.clone(),
+            restaurants_number
         ])
         .enable_ctrlc_handler()
         .build()

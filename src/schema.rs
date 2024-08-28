@@ -8,7 +8,6 @@ use crate::model::{restaurant::Restaurant, state::State, types::*};
 use crate::utils::constants::BOOKING_EXPIRATION_MINUTES;
 use crate::utils::constants::IN_TIME_ANSWER_BONUS;
 use crate::utils::constants::NOT_IN_TIME_ANSWER_PENALTY;
-use crate::utils::constants::NO_ANSWER_PENALTY;
 use crate::utils::constants::SEARCH_REQUEST_MESSAGE;
 use crate::utils::keyboard::*;
 use chrono::Local;
@@ -85,13 +84,21 @@ async fn reset(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
 
 /// STATE HANDLERS
 
-async fn receive_role_selection(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
+async fn receive_role_selection(
+    restaurants_number: u64,
+    bot: Bot,
+    dialogue: MyDialogue,
+    msg: Message,
+) -> HandlerResult {
     match msg.text() {
         Some("Обычный пользователь") => {
-            bot.send_message(msg.chat.id, include_str!("resources/greetings.txt"))
-                .reply_markup(make_search_keyboard())
-                .parse_mode(ParseMode::Html)
-                .await?;
+            bot.send_message(
+                msg.chat.id,
+                format!(include_str!("resources/greetings.txt"), restaurants_number),
+            )
+            .reply_markup(make_search_keyboard())
+            .parse_mode(ParseMode::Html)
+            .await?;
             dialogue.update(State::ReceiveSearchRequest).await?;
         }
         Some("Администратор") => {
@@ -298,7 +305,7 @@ async fn receive_location(
                 msg.chat.id,
                 "В ближайшие к вам рестораны был отправлен запрос, ожидайте ответа",
             )
-            .reply_markup(ReplyMarkup::kb_remove())
+            .reply_markup(make_search_keyboard())
             .await?;
 
             {
@@ -335,7 +342,7 @@ async fn receive_location(
                 )
             };
 
-            dialogue.exit().await?;
+            dialogue.update(State::ReceiveSearchRequest).await?;
         }
         None => {
             bot.send_message(msg.from().unwrap().id, "Отправьте локацию для поиска")
