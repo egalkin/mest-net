@@ -1,10 +1,9 @@
 use crate::entity::manager::{self};
 use crate::entity::prelude::{Manager, Restaurant};
-use crate::entity::restaurant;
 use crate::utils::constants::SEARCH_RADIUS_IN_METERS;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbBackend, DbErr,
-    EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Statement,
+    EntityTrait, PaginatorTrait, QueryFilter, Statement,
 };
 use std::env;
 
@@ -33,30 +32,23 @@ impl DatabaseHandler {
     }
 
     pub async fn get_all_restaurants(&self) -> Vec<RestaurantModel> {
-        Restaurant::find().all(&self.db).await.unwrap_or_else(|x| {
-            log::error!("Error accessing the database: {:?}", x);
-            vec![]
-        })
-    }
-
-    pub async fn find_restaurants_by_ids(&self, restaurant_ids: Vec<i32>) -> Vec<RestaurantModel> {
+        log::info!("Fetching all restaurants");
         Restaurant::find()
-            .filter(restaurant::Column::Id.is_in(restaurant_ids))
-            .order_by_desc(restaurant::Column::Score)
             .all(&self.db)
             .await
-            .unwrap_or_else(|x| {
-                log::error!("Error accessing the database: {:?}", x);
+            .unwrap_or_else(|err| {
+                log::error!("Error while fetching all restaurants: {:?}", err);
                 vec![]
             })
     }
 
     pub async fn find_restaurant_by_id(&self, id: i32) -> Option<RestaurantModel> {
+        log::info!("Fetching restaurant by id = {}", id);
         Restaurant::find_by_id(id)
             .one(&self.db)
             .await
-            .unwrap_or_else(|x| {
-                log::error!("Error accessing the database: {:?}", x);
+            .unwrap_or_else(|err| {
+                log::error!("Error while fetching restaurant by id = {}: {:?}", id, err);
                 None
             })
     }
@@ -66,6 +58,7 @@ impl DatabaseHandler {
         longitude: f64,
         latitude: f64,
     ) -> Vec<RestaurantModel> {
+        log::info!("Fetching closest restaurant with longtitude = {}, latitude = {} in radius of {} meters", longitude, latitude, SEARCH_RADIUS_IN_METERS);
         Restaurant::find()
             .from_raw_sql(Statement::from_sql_and_values(
                 DbBackend::Postgres,
@@ -75,7 +68,7 @@ impl DatabaseHandler {
             .all(&self.db)
             .await
             .unwrap_or_else(|x| {
-                log::error!("Error accessing the database: {:?}", x);
+                log::error!("Error while fetching closest restaurant with longtitude = {}, latitude = {} in radius of {} meters: {:?}", longitude, latitude, SEARCH_RADIUS_IN_METERS, x);
                 vec![]
             })
             .into_iter()
@@ -84,43 +77,47 @@ impl DatabaseHandler {
     }
 
     pub async fn count_restaurants(&self) -> u64 {
+        log::info!("Counting restaurants numnber");
         Restaurant::find()
             .count(&self.db)
             .await
             .unwrap_or_else(|x| {
-                log::error!("Error accessing the database: {:?}", x);
+                log::error!("Error while counting restaurants number: {:?}", x);
                 0
             })
     }
 
     pub async fn find_manager_by_token(&self, token: String) -> Option<ManagerModel> {
+        log::info!("Fetching manager by token");
         Manager::find()
             .filter(manager::Column::Token.eq(token))
             .one(&self.db)
             .await
             .unwrap_or_else(|x| {
-                log::error!("Error accessing the database: {:?}", x);
+                log::error!("Error while fetching manager by token: {:?}", x);
                 None
             })
     }
 
     pub async fn find_manager_by_id(&self, id: i32) -> Option<ManagerModel> {
+        log::info!("Fetching manager with id = {}", id);
         Manager::find_by_id(id)
             .one(&self.db)
             .await
             .unwrap_or_else(|x| {
-                log::error!("Error accessing the database: {:?}", x);
+                log::error!("Error while fetching manager with id = {}: {:?}", id, x);
                 None
             })
     }
 
     pub async fn find_manager_by_tg_id(&self, id: i64) -> Option<ManagerModel> {
+        log::info!("Fetching manager with tg_id = {}", id);
         Manager::find()
             .filter(manager::Column::TgId.eq(id))
             .one(&self.db)
             .await
             .unwrap_or_else(|x| {
-                log::error!("Error accessing the database: {:?}", x);
+                log::error!("Error while fetching manager with tg_id = {}: {:?}", id, x);
                 None
             })
     }

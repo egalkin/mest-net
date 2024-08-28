@@ -159,13 +159,6 @@ pub(crate) async fn wait_for_restaurants_response(
     }
     let person_noun_form = resolve_person_noun_form(person_number);
     if !answered_restaurants.is_empty() {
-        let answered_restaurant_ids: Vec<i32> = answered_restaurants
-            .into_iter()
-            .map(|restaurant| restaurant.id)
-            .collect();
-        let answered_restaurants = db_handler
-            .find_restaurants_by_ids(answered_restaurant_ids)
-            .await;
         let mut formatted_answer = String::new();
         for restaurant in answered_restaurants {
             formatted_answer.push_str(&format!("<b>•</b> {}\n", restaurant))
