@@ -1,6 +1,7 @@
 use crate::entity::manager::{self};
 use crate::entity::prelude::{Manager, Restaurant};
 use crate::entity::restaurant;
+use crate::utils::constants::SEARCH_RADIUS_IN_METERS;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbBackend, DbErr,
     EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Statement,
@@ -69,7 +70,7 @@ impl DatabaseHandler {
             .from_raw_sql(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 r#"select * from restaurant r where ST_DWithin(r.geo_tag, ST_MakePoint($1, $2)::geography, $3) order by score desc"#,
-                [longitude.into(), latitude.into(), 1000.into()],
+                [longitude.into(), latitude.into(), SEARCH_RADIUS_IN_METERS.into()],
             ))
             .all(&self.db)
             .await
