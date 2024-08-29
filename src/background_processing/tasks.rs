@@ -8,6 +8,7 @@ use crate::utils::keyboard::make_request_answer_keyboard;
 use anyhow::Result;
 use async_std::task;
 use chrono::Local;
+use scc::hash_map::OccupiedEntry;
 use sea_orm::{IntoActiveModel, Set};
 use std::collections::HashSet;
 use std::time::Duration;
@@ -15,6 +16,8 @@ use teloxide::prelude::*;
 use teloxide::types::ParseMode;
 use tokio::sync::mpsc::Receiver;
 use tokio::task::JoinSet;
+
+type Restaurant = restaurant::Model;
 
 pub(crate) async fn send_mest_check_notification(
     bot: Bot,
@@ -29,7 +32,7 @@ pub(crate) async fn send_mest_check_notification(
                 longitude,
                 latitude,
             } => {
-                let restaurants = db_handler
+                let restaurants: Vec<restaurant::Model> = db_handler
                     .find_closest_restaurants(longitude, latitude)
                     .await;
                 let mut set: JoinSet<Result<()>> = JoinSet::new();
@@ -48,26 +51,21 @@ pub(crate) async fn send_mest_check_notification(
                                 continue;
                             }
                         }
-                        let booking_request_expiration_time = booking_info
-                            .get_booking_request_expiration_time((person_number - 1) as usize);
-                        let request_expired =
-                            booking_info.notifications_state & (1 << person_number) != 0
-                                && Local::now() > *booking_request_expiration_time;
-                        if booking_info.notifications_state & (1 << person_number) == 0
-                            || request_expired
-                        {
+
+                        process_request_expirations(
+                            db_handler.clone(),
+                            &mut booking_info,
+                            restaurant,
+                        )
+                        .await;
+
+                        if booking_info.notifications_state & (1 << person_number) == 0 {
                             booking_info.notifications_state |= 1 << person_number;
                             booking_info.set_booking_request_expiration_time(
                                 (person_number - 1) as usize,
                                 Local::now()
                                     + Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60),
                             );
-                            if request_expired {
-                                let current_score = restaurant.score;
-                                let mut restaurant = restaurant.into_active_model();
-                                restaurant.score = Set(current_score - NO_ANSWER_PENALTY);
-                                let _ = db_handler.update_restaurant(restaurant).await;
-                            }
                             {
                                 let db_handler = db_handler.clone();
                                 let restaurants_booking_info = restaurants_booking_info.clone();
@@ -105,6 +103,29 @@ pub(crate) async fn send_mest_check_notification(
             }
         }
     }
+}
+
+async fn process_request_expirations(
+    db_handler: DatabaseHandler,
+    booking_info: &mut OccupiedEntry<'_, i32, BookingInfo>,
+    restaurant: Restaurant,
+) {
+    let current_time = &Local::now();
+    let mut total_penalty = 0.0;
+    for person_number in 1..booking_info.booking_request_expiration_times.len() + 1 {
+        let booking_request_expiration_time =
+            booking_info.get_booking_request_expiration_time(person_number - 1);
+        let request_expired = booking_info.notifications_state & (1 << person_number) != 0
+            && *current_time > *booking_request_expiration_time;
+        if request_expired {
+            total_penalty += NO_ANSWER_PENALTY;
+            booking_info.notifications_state &= !(1 << person_number);
+        }
+    }
+    let current_score = restaurant.score;
+    let mut restaurant: restaurant::ActiveModel = restaurant.into_active_model();
+    restaurant.score = Set(current_score - total_penalty);
+    let _ = db_handler.update_restaurant(restaurant).await;
 }
 
 pub(crate) async fn wait_for_restaurants_response(
