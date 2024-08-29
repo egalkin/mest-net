@@ -18,9 +18,9 @@ impl MigrationTrait for Migration {
                     .col(string(Restaurant::Segment))
                     .col(string(Restaurant::Kitchen))
                     .col(json(Restaurant::Schedule))
-                    .col(double(Restaurant::Score).default(100.0))
+                    .col(integer(Restaurant::Score).default(100))
                     .to_owned(),
-            )
+            )   
             .await?;
 
         let db = manager.get_connection();
@@ -39,13 +39,7 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .drop_table(Table::drop().table(Restaurant::Table).to_owned())
-            .await?;
-
-        manager.get_connection().execute_unprepared(
-            "DROP INDEX IF EXISTS restaurant_geo_tag_index"
-        ).await?;
-
-        Ok(())
+            .await
     }
 }
 

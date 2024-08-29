@@ -7,6 +7,8 @@ use crate::model::state::State::Start;
 use crate::model::{state::State, types::*};
 use crate::utils::constants::BOOKING_EXPIRATION_MINUTES;
 use crate::utils::constants::IN_TIME_ANSWER_BONUS;
+use crate::utils::constants::MAX_RESTAURANT_SCORE;
+use crate::utils::constants::MIN_RESTAURANT_SCORE;
 use crate::utils::constants::NOT_IN_TIME_ANSWER_PENALTY;
 use crate::utils::constants::SEARCH_REQUEST_MESSAGE;
 use crate::utils::keyboard::*;
@@ -212,12 +214,13 @@ async fn receive_booking_request(
                                     if booking_info.notifications_state & (1 << person_number) != 0
                                     {
                                         if Local::now() > *booking_request_expiration_time {
-                                            restaurant.score =
-                                                Set(current_score_value
-                                                    - NOT_IN_TIME_ANSWER_PENALTY);
+                                            restaurant.score = Set((current_score_value
+                                                - NOT_IN_TIME_ANSWER_PENALTY)
+                                                .max(MIN_RESTAURANT_SCORE));
                                         } else {
-                                            restaurant.score =
-                                                Set(current_score_value + IN_TIME_ANSWER_BONUS);
+                                            restaurant.score = Set((current_score_value
+                                                + IN_TIME_ANSWER_BONUS)
+                                                .min(MAX_RESTAURANT_SCORE));
                                         }
                                     }
                                     db_handler.update_restaurant(restaurant).await?;
@@ -231,7 +234,8 @@ async fn receive_booking_request(
                                             person_number
                                     );
                                 booking_info.notifications_state &= !(1 << person_number);
-                                bot.send_message(msg.chat.id, "Спасибо за ваш").await?;
+                                bot.send_message(msg.chat.id, "Спасибо за ваш ответ")
+                                    .await?;
                             }
                         }
                     }

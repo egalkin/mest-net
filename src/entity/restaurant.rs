@@ -21,8 +21,7 @@ pub struct Model {
     pub segment: String,
     pub kitchen: String,
     pub schedule: Schedule,
-    #[sea_orm(column_type = "Double")]
-    pub score: f64,
+    pub score: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

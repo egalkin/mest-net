@@ -3,7 +3,9 @@ use crate::entity::restaurant;
 use crate::model::booking_info::BookingInfo;
 use crate::model::commands::MestCheckCommand;
 use crate::model::types::{Db, HandlerResult};
-use crate::utils::constants::{BOOKING_REQUEST_EXPIRATION_MINUTES, NO_ANSWER_PENALTY};
+use crate::utils::constants::{
+    BOOKING_REQUEST_EXPIRATION_MINUTES, MIN_RESTAURANT_SCORE, NO_ANSWER_PENALTY,
+};
 use crate::utils::keyboard::make_request_answer_keyboard;
 use anyhow::Result;
 use async_std::task;
@@ -111,7 +113,7 @@ async fn process_request_expirations(
     restaurant: Restaurant,
 ) {
     let current_time = &Local::now();
-    let mut total_penalty = 0.0;
+    let mut total_penalty: i32 = 0;
     for person_number in 1..booking_info.booking_request_expiration_times.len() + 1 {
         let booking_request_expiration_time =
             booking_info.get_booking_request_expiration_time(person_number - 1);
@@ -124,7 +126,7 @@ async fn process_request_expirations(
     }
     let current_score = restaurant.score;
     let mut restaurant: restaurant::ActiveModel = restaurant.into_active_model();
-    restaurant.score = Set(current_score - total_penalty);
+    restaurant.score = Set((current_score - total_penalty).max(MIN_RESTAURANT_SCORE));
     let _ = db_handler.update_restaurant(restaurant).await;
 }
 
