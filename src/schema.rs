@@ -209,12 +209,16 @@ async fn receive_booking_request(
                                         );
                                     let current_score_value = restaurant.score;
                                     let mut restaurant = restaurant.into_active_model();
-                                    if Local::now() > *booking_request_expiration_time {
-                                        restaurant.score =
-                                            Set(current_score_value - NOT_IN_TIME_ANSWER_PENALTY);
-                                    } else {
-                                        restaurant.score =
-                                            Set(current_score_value + IN_TIME_ANSWER_BONUS);
+                                    if booking_info.notifications_state & (1 << person_number) != 0
+                                    {
+                                        if Local::now() > *booking_request_expiration_time {
+                                            restaurant.score =
+                                                Set(current_score_value
+                                                    - NOT_IN_TIME_ANSWER_PENALTY);
+                                        } else {
+                                            restaurant.score =
+                                                Set(current_score_value + IN_TIME_ANSWER_BONUS);
+                                        }
                                     }
                                     db_handler.update_restaurant(restaurant).await?;
                                 }
@@ -227,6 +231,7 @@ async fn receive_booking_request(
                                             person_number
                                     );
                                 booking_info.notifications_state &= !(1 << person_number);
+                                bot.send_message(msg.chat.id, "Спасибо за ваш").await?;
                             }
                         }
                     }
