@@ -6,6 +6,7 @@ use crate::model::commands::MestCheckCommand;
 use crate::model::state::State::Start;
 use crate::model::{state::State, types::*};
 use crate::utils::constants::BOOKING_EXPIRATION_MINUTES;
+use crate::utils::constants::FEEDBACK_FORM_URL;
 use crate::utils::constants::IN_TIME_ANSWER_BONUS;
 use crate::utils::constants::MAX_RESTAURANT_SCORE;
 use crate::utils::constants::MIN_RESTAURANT_SCORE;
@@ -34,10 +35,11 @@ pub(crate) fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync>
                 .branch(case![BotCommand::Help].endpoint(help))
                 .branch(case![BotCommand::Start].endpoint(start))
                 .branch(case![BotCommand::Reset].endpoint(reset))
+                .branch(case![BotCommand::Feedback].endpoint(feedback))
                 .branch(dptree::endpoint(invalid_input)),
         )
-        .branch(case![BotCommand::Reset])
-        .endpoint(reset);
+        .branch(case![BotCommand::Reset].endpoint(reset))
+        .branch(case![BotCommand::Feedback].endpoint(feedback));
     let message_handler = Update::filter_message()
         .branch(command_handler)
         .branch(case![State::RoleSelection].endpoint(receive_role_selection))
@@ -80,6 +82,19 @@ async fn reset(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
         .reply_markup(ReplyMarkup::kb_remove())
         .await?;
     dialogue.exit().await?;
+    Ok(())
+}
+
+async fn feedback(bot: Bot, _dialogue: MyDialogue, msg: Message) -> HandlerResult {
+    bot.send_message(
+        msg.chat.id,
+        format!(
+            "Поделиться обратной связью вы можете, заполнив следующую <a href=\"{}\">форму</a>",
+            FEEDBACK_FORM_URL
+        ),
+    )
+    .parse_mode(ParseMode::Html)
+    .await?;
     Ok(())
 }
 

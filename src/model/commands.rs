@@ -9,6 +9,8 @@ pub(crate) enum BotCommand {
     Reset,
     #[command(description = "Показать список всех команд")]
     Help,
+    #[command(description = "Обратная связь")]
+    Feedback,
 }
 
 pub(crate) enum MestCheckCommand {
