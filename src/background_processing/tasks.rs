@@ -72,7 +72,7 @@ pub(crate) async fn send_mest_check_notification(
                                 let db_handler = db_handler.clone();
                                 let restaurants_booking_info = restaurants_booking_info.clone();
                                 set.spawn(async move {
-                                    match db_handler.find_manager_by_id(restaurant_id).await {
+                                    match db_handler.find_manager_by_restaurant_id(restaurant_id).await {
                                         Some(entity) => {
                                             let person_noun_form = resolve_person_noun_form(person_number);
                                             if let Some(tg_id) = entity.tg_id {
@@ -84,15 +84,12 @@ pub(crate) async fn send_mest_check_notification(
                                                 )
                                                     .reply_markup(make_request_answer_keyboard())
                                                     .await?;
+                                            } else {
+                                                reset_notification_state(restaurants_booking_info, restaurant_id, person_number).await;
                                             }
                                         }
                                         None => {
-                                            if let Some(mut booking_info) =
-                                                restaurants_booking_info.get_async(&restaurant_id).await
-                                            {
-                                                booking_info.notifications_state &=
-                                                    !(1 << person_number);
-                                            }
+                                            reset_notification_state(restaurants_booking_info, restaurant_id, person_number).await;
                                         }
                                     }
                                     Ok(())
@@ -104,6 +101,16 @@ pub(crate) async fn send_mest_check_notification(
                 while (set.join_next().await).is_some() {}
             }
         }
+    }
+}
+
+async fn reset_notification_state(
+    restaurants_booking_info: Db<i32, BookingInfo>,
+    restaurant_id: i32,
+    person_number: u8,
+) {
+    if let Some(mut booking_info) = restaurants_booking_info.get_async(&restaurant_id).await {
+        booking_info.notifications_state &= !(1 << person_number);
     }
 }
 

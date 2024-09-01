@@ -99,13 +99,18 @@ impl DatabaseHandler {
             })
     }
 
-    pub async fn find_manager_by_id(&self, id: i32) -> Option<ManagerModel> {
-        log::info!("Fetching manager with id = {}", id);
-        Manager::find_by_id(id)
+    pub async fn find_manager_by_restaurant_id(&self, restaurant_id: i32) -> Option<ManagerModel> {
+        log::info!("Fetching manager with restaurant_id = {}", restaurant_id);
+        Manager::find()
+            .filter(manager::Column::RestaurantId.eq(restaurant_id))
             .one(&self.db)
             .await
             .unwrap_or_else(|x| {
-                log::error!("Error while fetching manager with id = {}: {:?}", id, x);
+                log::error!(
+                    "Error while fetching manager with restaurant_id = {}: {:?}",
+                    restaurant_id,
+                    x
+                );
                 None
             })
     }
