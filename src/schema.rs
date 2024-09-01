@@ -77,10 +77,25 @@ async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
     Ok(())
 }
 
-async fn reset(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
+async fn reset(
+    db_handler: DatabaseHandler,
+    bot: Bot,
+    dialogue: MyDialogue,
+    msg: Message,
+) -> HandlerResult {
+    if let Some(manager) = db_handler
+        .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
+        .await
+    {
+        let mut manager = manager.into_active_model();
+        manager.tg_id = Set(None);
+        db_handler.update_manager(manager).await?;
+    }
+
     bot.send_message(msg.chat.id, BotCommand::descriptions().to_string())
         .reply_markup(ReplyMarkup::kb_remove())
         .await?;
+
     dialogue.exit().await?;
     Ok(())
 }
