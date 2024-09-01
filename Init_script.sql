@@ -5,7 +5,7 @@ insert into restaurant values
       "content": {
         "working_time": {
           "start_time": "08:00:00.0",
-          "end_time": "23:00:00.0"
+          "end_time": "22:00:00.0"
         }
       }
     }',
