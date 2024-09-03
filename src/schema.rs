@@ -224,7 +224,7 @@ async fn receive_share_contact_allowance(
                 let mut manager = manager.into_active_model();
                 manager.share_contact = Set(ans == "Да");
                 db_handler.update_manager(manager).await?;
-                bot.send_message(msg.chat.id, "Ожидайте запросов на бронирование")
+                bot.send_message(msg.chat.id, "Ожидайте запросы на бронирование")
                     .reply_markup(ReplyMarkup::kb_remove())
                     .await?;
                 dialogue.update(State::WaitingForRequests).await?
