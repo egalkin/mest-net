@@ -12,7 +12,6 @@ use async_std::task;
 use chrono::Local;
 use scc::hash_map::OccupiedEntry;
 use sea_orm::{IntoActiveModel, Set};
-use std::collections::HashSet;
 use std::time::Duration;
 use teloxide::prelude::*;
 use teloxide::types::ParseMode;
@@ -151,8 +150,7 @@ pub(crate) async fn wait_for_restaurants_response(
     let closest_restaurants: Vec<restaurant::Model> = db_handler
         .find_closest_restaurants(longitude, latitude)
         .await;
-    let mut answered_restaurants: HashSet<&restaurant::Model> =
-        HashSet::<&restaurant::Model>::new();
+    let mut answered_restaurants = Vec::with_capacity(closest_restaurants.len());
     loop {
         let current_time = Local::now();
         if current_time < time_to_finish {
@@ -168,7 +166,7 @@ pub(crate) async fn wait_for_restaurants_response(
                         if Local::now() > *booking_expiration_time {
                             booking_info.booking_state &= !(1 << person_number)
                         } else {
-                            answered_restaurants.insert(restaurant);
+                            answered_restaurants.push(restaurant);
                         }
                     }
                     if (current_time - start_time).num_seconds() > 30
