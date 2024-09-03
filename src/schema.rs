@@ -190,7 +190,7 @@ async fn receive_admin_token(
                         } else {
                             bot.send_message(
                                 msg.chat.id,
-                                include_str!("resources/greetings_for_admin.txt"),
+                                include_str!("resources/admin_already_authorized.txt"),
                             )
                             .await?;
                         }
