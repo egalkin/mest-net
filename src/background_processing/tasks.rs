@@ -6,7 +6,7 @@ use crate::model::types::{Db, HandlerResult};
 use crate::utils::constants::{
     BOOKING_REQUEST_EXPIRATION_MINUTES, MIN_RESTAURANT_SCORE, NO_ANSWER_PENALTY,
 };
-use crate::utils::keyboard::make_request_answer_keyboard;
+use crate::utils::keyboard::make_answer_keyboard;
 use anyhow::Result;
 use async_std::task;
 use chrono::Local;
@@ -82,7 +82,7 @@ pub(crate) async fn send_mest_check_notification(
                                                         "У вас есть места на {person_number} {person_noun_form}?"
                                                     ),
                                                 )
-                                                    .reply_markup(make_request_answer_keyboard())
+                                                    .reply_markup(make_answer_keyboard())
                                                     .await?;
                                             } else {
                                                 reset_notification_state(restaurants_booking_info, restaurant_id, person_number).await;
@@ -191,7 +191,18 @@ pub(crate) async fn wait_for_restaurants_response(
     if !answered_restaurants.is_empty() {
         let mut formatted_answer = String::new();
         for restaurant in answered_restaurants {
-            formatted_answer.push_str(&format!("<b>•</b> {}\n", restaurant))
+            formatted_answer.push_str(&format!("<b>•</b> {}\n", restaurant));
+            if let Some(manager) = db_handler.find_manager_for_restaurant(restaurant).await {
+                if manager.share_contact {
+                    formatted_answer.push_str(&format!(
+                        "          <a href=\"{}\">Предупредить о визите</a>\n",
+                        manager
+                    ));
+                } else {
+                    formatted_answer
+                        .push_str(&format!("          Телефон: {}\n", restaurant.phone_number))
+                }
+            }
         }
         bot.send_message(
             msg.chat.id,

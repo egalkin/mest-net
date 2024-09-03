@@ -10,6 +10,7 @@ insert into restaurant values
       }
     }',
     100,
+    '+78126400506',
     ST_MakePoint(30.299833, 60.000142));
 
 insert into restaurant values
@@ -29,6 +30,7 @@ insert into restaurant values
       }
     }',
     100,
+    '+79944337352',
     ST_MakePoint(30.299903, 60.002264));
 
 insert into manager values

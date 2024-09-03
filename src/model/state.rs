@@ -5,6 +5,7 @@ pub(crate) enum State {
     RoleSelection,
     /// Admin flow
     ReceiveAdminToken,
+    ReceiveShareContactAllowance,
     WaitingForRequests,
     RequestAnswered {
         person_number: u8,

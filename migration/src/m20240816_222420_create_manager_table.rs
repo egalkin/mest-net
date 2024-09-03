@@ -17,6 +17,7 @@ impl MigrationTrait for Migration {
                     .col(big_integer_null(Manager::TgId).unique_key())
                     .col(string(Manager::Token))
                     .col(integer(Manager::RestaurantId))
+                    .col(boolean(Manager::ShareContact).default(false))
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-manager-restaurant_id")
@@ -44,7 +45,8 @@ enum Manager {
     Id,
     TgId,
     Token,
-    RestaurantId
+    RestaurantId,
+    ShareContact
 }
 
 #[derive(DeriveIden)]

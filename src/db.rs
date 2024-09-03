@@ -3,7 +3,7 @@ use crate::entity::prelude::{Manager, Restaurant};
 use crate::utils::constants::SEARCH_RADIUS_IN_METERS;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbBackend, DbErr,
-    EntityTrait, PaginatorTrait, QueryFilter, Statement,
+    EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, Statement,
 };
 use std::env;
 
@@ -84,6 +84,24 @@ impl DatabaseHandler {
             .unwrap_or_else(|x| {
                 log::error!("Error while counting restaurants number: {:?}", x);
                 0
+            })
+    }
+
+    pub async fn find_manager_for_restaurant(
+        &self,
+        restaurant: &RestaurantModel,
+    ) -> Option<ManagerModel> {
+        restaurant
+            .find_related(Manager)
+            .one(&self.db)
+            .await
+            .unwrap_or_else(|x| {
+                log::error!(
+                    "Error while fetching manager for restaurant with id = {}:  {:?}",
+                    restaurant.id,
+                    x
+                );
+                None
             })
     }
 

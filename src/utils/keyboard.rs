@@ -25,7 +25,7 @@ pub fn make_role_keyboard() -> KeyboardMarkup {
     make_keyboard(vec!["Обычный пользователь", "Администратор"])
 }
 
-pub fn make_request_answer_keyboard() -> KeyboardMarkup {
+pub fn make_answer_keyboard() -> KeyboardMarkup {
     make_keyboard(vec!["Да", "Нет"])
 }
 

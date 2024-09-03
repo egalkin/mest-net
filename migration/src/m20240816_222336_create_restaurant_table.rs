@@ -19,6 +19,7 @@ impl MigrationTrait for Migration {
                     .col(string(Restaurant::Kitchen))
                     .col(json(Restaurant::Schedule))
                     .col(integer(Restaurant::Score).default(100))
+                    .col(string(Restaurant::PhoneNumber))
                     .to_owned(),
             )   
             .await?;
@@ -54,5 +55,6 @@ enum Restaurant {
     Segment,
     Kitchen,
     Schedule,
-    Score
+    Score,
+    PhoneNumber
 }

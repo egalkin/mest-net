@@ -22,6 +22,7 @@ pub struct Model {
     pub kitchen: String,
     pub schedule: Schedule,
     pub score: i32,
+    pub phone_number: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

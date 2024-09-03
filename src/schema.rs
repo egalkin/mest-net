@@ -45,6 +45,9 @@ pub(crate) fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync>
         .branch(case![State::RoleSelection].endpoint(receive_role_selection))
         // Admin flow
         .branch(case![State::ReceiveAdminToken].endpoint(receive_admin_token))
+        .branch(
+            case![State::ReceiveShareContactAllowance].endpoint(receive_share_contact_allowance),
+        )
         .branch(case![State::WaitingForRequests].endpoint(receive_booking_request))
         // .branch(case![State::WaitingForRequests].endpoint())
         //  User flow
@@ -89,6 +92,7 @@ async fn reset(
     {
         let mut manager = manager.into_active_model();
         manager.tg_id = Set(None);
+        manager.share_contact = Set(false);
         db_handler.update_manager(manager).await?;
     }
 
@@ -176,10 +180,20 @@ async fn receive_admin_token(
                         if token_manager.tg_id.unwrap().is_none() {
                             token_manager.tg_id = Set(Some(msg.from().unwrap().id.0 as i64));
                             db_handler.update_manager(token_manager).await?;
-                        }
-                        bot.send_message(msg.chat.id, "Ожидайте запросов на бронирование")
+                            bot.send_message(
+                                msg.chat.id,
+                                "Делиться вашим контактом с пользователями для бронирования?",
+                            )
+                            .reply_markup(make_answer_keyboard())
                             .await?;
-                        dialogue.update(State::WaitingForRequests).await?
+                            dialogue.update(State::ReceiveShareContactAllowance).await?
+                        } else {
+                            bot.send_message(
+                                msg.chat.id,
+                                include_str!("resources/greetings_for_admin.txt"),
+                            )
+                            .await?;
+                        }
                     }
                 }
             }
@@ -192,6 +206,34 @@ async fn receive_admin_token(
         }
     }
 
+    Ok(())
+}
+
+async fn receive_share_contact_allowance(
+    db_handler: DatabaseHandler,
+    bot: Bot,
+    dialogue: MyDialogue,
+    msg: Message,
+) -> HandlerResult {
+    match msg.text() {
+        Some(ans) if ans == "Да" || ans == "Нет" => {
+            if let Some(manager) = db_handler
+                .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
+                .await
+            {
+                let mut manager = manager.into_active_model();
+                manager.share_contact = Set(ans == "Да");
+                db_handler.update_manager(manager).await?;
+                bot.send_message(msg.chat.id, "Ожидайте запросов на бронирование")
+                    .reply_markup(ReplyMarkup::kb_remove())
+                    .await?;
+                dialogue.update(State::WaitingForRequests).await?
+            }
+        }
+        _ => {
+            bot.send_message(msg.chat.id, "Ответьте Да или Нет").await?;
+        }
+    }
     Ok(())
 }
 
