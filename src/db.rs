@@ -1,9 +1,13 @@
 use crate::entity::manager::{self};
 use crate::entity::prelude::{Manager, Restaurant};
+use crate::entity::restaurant::{self, RestaurantWithManagerInfo};
 use crate::utils::constants::SEARCH_RADIUS_IN_METERS;
+use sea_orm::prelude::Expr;
+use sea_orm::sea_query::{Alias, IntoCondition};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectOptions, ConnectionTrait, Database, DatabaseConnection,
-    DbBackend, DbErr, EntityTrait, ExecResult, ModelTrait, PaginatorTrait, QueryFilter, Statement,
+    DbBackend, DbErr, EntityTrait, ExecResult, IntoSimpleExpr, JoinType, PaginatorTrait,
+    QueryFilter, QueryOrder, QuerySelect, RelationTrait, Statement,
 };
 use std::env;
 
@@ -56,16 +60,17 @@ impl DatabaseHandler {
         &self,
         longitude: f64,
         latitude: f64,
-    ) -> Vec<RestaurantModel> {
+    ) -> Vec<RestaurantWithManagerInfo> {
         log::info!("Fetching closest restaurant with longtitude = {}, latitude = {} in radius of {} meters", longitude, latitude, SEARCH_RADIUS_IN_METERS);
         Restaurant::find()
             .from_raw_sql(Statement::from_sql_and_values(
                 DbBackend::Postgres,
-                r#"select r.* from restaurant r 
-                        inner join manager m on r.id = m.restaurant_id 
-                        where ST_DWithin(r.geo_tag, ST_MakePoint($1, $2)::geography, $3) and m.tg_id is not null order by score desc"#,
+                r#"select r.*, m.tg_id manager_tg_id, m.share_contact share_manager_contact from restaurant r 
+                        inner join manager m on r.id = m.restaurant_id and m.tg_id is not null
+                        where ST_DWithin(r.geo_tag, ST_MakePoint($1, $2)::geography, $3) order by score desc, id asc"#,
                 [longitude.into(), latitude.into(), SEARCH_RADIUS_IN_METERS.into()],
             ))
+            .into_model::<RestaurantWithManagerInfo>()
             .all(&self.db)
             .await
             .unwrap_or_else(|x| {
@@ -75,6 +80,40 @@ impl DatabaseHandler {
             .into_iter()
             .filter(|restaurant| restaurant.is_open())
             .collect()
+    }
+
+    pub async fn find_restaurants_by_ids(&self, ids: Vec<i32>) -> Vec<RestaurantWithManagerInfo> {
+        log::info!("Fetching restaurants by ids");
+        Restaurant::find()
+            .column_as(
+                Expr::col((Alias::new("m"), manager::Column::TgId)).into_simple_expr(),
+                "manager_tg_id",
+            )
+            .column_as(
+                Expr::col((Alias::new("m"), manager::Column::ShareContact)).into_simple_expr(),
+                "share_manager_contact",
+            )
+            .join_as(
+                JoinType::InnerJoin,
+                restaurant::Relation::Manager
+                    .def()
+                    .on_condition(|_left, right| {
+                        Expr::col((right, manager::Column::TgId))
+                            .is_not_null()
+                            .into_condition()
+                    }),
+                Alias::new("m"),
+            )
+            .filter(restaurant::Column::Id.is_in(ids))
+            .order_by_desc(restaurant::Column::Score)
+            .order_by_asc(restaurant::Column::Id)
+            .into_model::<RestaurantWithManagerInfo>()
+            .all(&self.db)
+            .await
+            .unwrap_or_else(|x| {
+                log::error!("Error while fetching fetching restaurants by ids: {:?}", x);
+                vec![]
+            })
     }
 
     pub async fn count_restaurants(&self) -> u64 {
@@ -88,24 +127,6 @@ impl DatabaseHandler {
             })
     }
 
-    pub async fn find_manager_for_restaurant(
-        &self,
-        restaurant: &RestaurantModel,
-    ) -> Option<ManagerModel> {
-        restaurant
-            .find_related(Manager)
-            .one(&self.db)
-            .await
-            .unwrap_or_else(|x| {
-                log::error!(
-                    "Error while fetching manager for restaurant with id = {}:  {:?}",
-                    restaurant.id,
-                    x
-                );
-                None
-            })
-    }
-
     pub async fn find_manager_by_token(&self, token: String) -> Option<ManagerModel> {
         log::info!("Fetching manager by token");
         Manager::find()
@@ -114,22 +135,6 @@ impl DatabaseHandler {
             .await
             .unwrap_or_else(|x| {
                 log::error!("Error while fetching manager by token: {:?}", x);
-                None
-            })
-    }
-
-    pub async fn find_manager_by_restaurant_id(&self, restaurant_id: i32) -> Option<ManagerModel> {
-        log::info!("Fetching manager with restaurant_id = {}", restaurant_id);
-        Manager::find()
-            .filter(manager::Column::RestaurantId.eq(restaurant_id))
-            .one(&self.db)
-            .await
-            .unwrap_or_else(|x| {
-                log::error!(
-                    "Error while fetching manager with restaurant_id = {}: {:?}",
-                    restaurant_id,
-                    x
-                );
                 None
             })
     }

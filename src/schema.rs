@@ -292,9 +292,14 @@ async fn receive_booking_request(
                                                 .min(MAX_RESTAURANT_SCORE);
                                         }
                                     }
-                                    db_handler
-                                        .update_restaurant_score_wiht_raw_sql(restaurant.id, score)
-                                        .await?;
+                                    if score != restaurant.score {
+                                        db_handler
+                                            .update_restaurant_score_wiht_raw_sql(
+                                                restaurant.id,
+                                                score,
+                                            )
+                                            .await?;
+                                    }
                                 }
                                 log::info!(
                                             "{} manager with username = {:?} and user_id = {} {} booking request for {} persons",

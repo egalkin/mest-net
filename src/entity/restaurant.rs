@@ -4,9 +4,9 @@ use std::fmt::{Display, Formatter};
 
 use chrono::Weekday::{Fri, Sat, Sun};
 use chrono::{DateTime, Datelike, Local, NaiveTime};
+use sea_orm::FromQueryResult;
 use sea_orm::{entity::prelude::*, FromJsonQueryResult};
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
 
 use crate::utils::constants::{DAY_END, MIDNIGHT};
 
@@ -25,6 +25,27 @@ pub struct Model {
     pub phone_number: String,
 }
 
+#[derive(FromQueryResult)]
+pub struct RestaurantWithManagerInfo {
+    pub id: i32,
+    pub name: String,
+    pub maps_url: String,
+    pub average_price: String,
+    pub segment: String,
+    pub kitchen: String,
+    pub schedule: Schedule,
+    pub score: i32,
+    pub phone_number: String,
+    pub manager_tg_id: i64,
+    pub share_manager_contact: bool,
+}
+
+impl RestaurantWithManagerInfo {
+    pub fn is_open(&self) -> bool {
+        self.schedule.match_in(Local::now())
+    }
+}
+
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(has_many = "super::manager::Entity")]
@@ -39,27 +60,13 @@ impl Related<super::manager::Entity> for Entity {
 
 impl ActiveModelBehavior for ActiveModel {}
 
-impl Display for Model {
+impl Display for RestaurantWithManagerInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "<a href=\"{}\">{}</a> — Кухня: {}; Средний чек: {}",
             self.maps_url, self.name, self.kitchen, self.average_price
         )
-    }
-}
-
-impl PartialEq for Model {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Eq for Model {}
-
-impl Hash for Model {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id.hash(state)
     }
 }
 
@@ -154,12 +161,6 @@ impl Schedule {
 pub struct WorkingTime {
     pub start_time: NaiveTime,
     pub end_time: NaiveTime,
-}
-
-impl Model {
-    pub fn is_open(&self) -> bool {
-        self.schedule.match_in(Local::now())
-    }
 }
 
 #[cfg(test)]

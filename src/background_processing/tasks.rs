@@ -17,7 +17,7 @@ use teloxide::types::ParseMode;
 use tokio::sync::mpsc::Receiver;
 use tokio::task::JoinSet;
 
-type Restaurant = restaurant::Model;
+type Restaurant = restaurant::RestaurantWithManagerInfo;
 
 pub(crate) async fn send_mest_check_notification(
     bot: Bot,
@@ -32,12 +32,12 @@ pub(crate) async fn send_mest_check_notification(
                 longitude,
                 latitude,
             } => {
-                let restaurants: Vec<restaurant::Model> = db_handler
+                let restaurants: Vec<Restaurant> = db_handler
                     .find_closest_restaurants(longitude, latitude)
                     .await;
                 let mut set: JoinSet<Result<()>> = JoinSet::new();
                 for restaurant in restaurants {
-                    let restaurant_id = restaurant.id;
+                    let tg_id = restaurant.manager_tg_id;
                     let bot = bot.clone();
                     if let Some(mut booking_info) =
                         restaurants_booking_info.get_async(&restaurant.id).await
@@ -66,49 +66,24 @@ pub(crate) async fn send_mest_check_notification(
                                 Local::now()
                                     + Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60),
                             );
-                            {
-                                let db_handler = db_handler.clone();
-                                let restaurants_booking_info = restaurants_booking_info.clone();
-                                set.spawn(async move {
-                                    match db_handler.find_manager_by_restaurant_id(restaurant_id).await {
-                                        Some(entity) => {
-                                            let person_noun_form = resolve_person_noun_form(person_number);
-                                            if let Some(tg_id) = entity.tg_id {
-                                                bot.send_message(
-                                                    UserId(tg_id as u64),
-                                                    format!(
-                                                        "У вас есть места на {person_number} {person_noun_form}?"
-                                                    ),
-                                                )
-                                                    .reply_markup(make_answer_keyboard())
-                                                    .await?;
-                                            } else {
-                                                reset_notification_state(restaurants_booking_info, restaurant_id, person_number).await;
-                                            }
-                                        }
-                                        None => {
-                                            reset_notification_state(restaurants_booking_info, restaurant_id, person_number).await;
-                                        }
-                                    }
-                                    Ok(())
-                                });
-                            }
+                            set.spawn(async move {
+                                let person_noun_form = resolve_person_noun_form(person_number);
+                                bot.send_message(
+                                    UserId(tg_id as u64),
+                                    format!(
+                                        "У вас есть места на {person_number} {person_noun_form}?"
+                                    ),
+                                )
+                                .reply_markup(make_answer_keyboard())
+                                .await?;
+                                Ok(())
+                            });
                         }
                     }
                 }
                 while (set.join_next().await).is_some() {}
             }
         }
-    }
-}
-
-async fn reset_notification_state(
-    restaurants_booking_info: Db<i32, BookingInfo>,
-    restaurant_id: i32,
-    person_number: u8,
-) {
-    if let Some(mut booking_info) = restaurants_booking_info.get_async(&restaurant_id).await {
-        booking_info.notifications_state &= !(1 << person_number);
     }
 }
 
@@ -131,9 +106,11 @@ async fn process_request_expirations(
     }
     if total_penalty != 0 {
         let score = (restaurant.score - total_penalty).max(MIN_RESTAURANT_SCORE);
-        let _ = db_handler
-            .update_restaurant_score_wiht_raw_sql(restaurant.id, score)
-            .await;
+        if score != restaurant.score {
+            let _ = db_handler
+                .update_restaurant_score_wiht_raw_sql(restaurant.id, score)
+                .await;
+        }
     }
 }
 
@@ -148,14 +125,14 @@ pub(crate) async fn wait_for_restaurants_response(
 ) -> HandlerResult {
     let start_time = Local::now();
     let time_to_finish = start_time + Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60);
-    let closest_restaurants: Vec<restaurant::Model> = db_handler
+    let closest_restaurants: Vec<Restaurant> = db_handler
         .find_closest_restaurants(longitude, latitude)
         .await;
-    let mut answered_restaurants = Vec::with_capacity(closest_restaurants.len());
+    let mut answered_restaurants_ids: Vec<i32> = Vec::with_capacity(closest_restaurants.len());
     loop {
         let current_time = Local::now();
         if current_time < time_to_finish {
-            answered_restaurants.clear();
+            answered_restaurants_ids.clear();
             let mut no_answers = 0;
             for restaurant in &*closest_restaurants {
                 if let Some(mut booking_info) =
@@ -167,7 +144,7 @@ pub(crate) async fn wait_for_restaurants_response(
                         if Local::now() > *booking_expiration_time {
                             booking_info.booking_state &= !(1 << person_number)
                         } else {
-                            answered_restaurants.push(restaurant);
+                            answered_restaurants_ids.push(restaurant.id);
                         }
                     }
                     if (current_time - start_time).num_seconds() > 30
@@ -178,7 +155,7 @@ pub(crate) async fn wait_for_restaurants_response(
                     }
                 }
             }
-            if (answered_restaurants.len() + no_answers) == closest_restaurants.len() {
+            if (answered_restaurants_ids.len() + no_answers) == closest_restaurants.len() {
                 break;
             }
         } else {
@@ -187,20 +164,21 @@ pub(crate) async fn wait_for_restaurants_response(
         task::sleep(Duration::from_secs(1)).await;
     }
     let person_noun_form = resolve_person_noun_form(person_number);
-    if !answered_restaurants.is_empty() {
+    if !answered_restaurants_ids.is_empty() {
+        let answered_restaurants = db_handler
+            .find_restaurants_by_ids(answered_restaurants_ids)
+            .await;
         let mut formatted_answer = String::new();
         for restaurant in answered_restaurants {
             formatted_answer.push_str(&format!("<b>•</b> {}\n", restaurant));
-            if let Some(manager) = db_handler.find_manager_for_restaurant(restaurant).await {
-                if manager.share_contact {
-                    formatted_answer.push_str(&format!(
-                        "          <a href=\"{}\">Предупредить о визите</a>\n",
-                        manager
-                    ));
-                } else {
-                    formatted_answer
-                        .push_str(&format!("          Телефон: {}\n", restaurant.phone_number))
-                }
+            if restaurant.share_manager_contact {
+                formatted_answer.push_str(&format!(
+                    "          <a href=\"tg://user?id={}\">Предупредить о визите</a>\n",
+                    restaurant.manager_tg_id
+                ));
+            } else {
+                formatted_answer
+                    .push_str(&format!("          Телефон: {}\n", restaurant.phone_number))
             }
         }
         bot.send_message(
