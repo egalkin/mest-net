@@ -62,7 +62,9 @@ impl DatabaseHandler {
         Restaurant::find()
             .from_raw_sql(Statement::from_sql_and_values(
                 DbBackend::Postgres,
-                r#"select * from restaurant r where ST_DWithin(r.geo_tag, ST_MakePoint($1, $2)::geography, $3) order by score desc"#,
+                r#"select r.* from restaurant r 
+                        inner join manager m on r.id = m.restaurant_id 
+                        where ST_DWithin(r.geo_tag, ST_MakePoint($1, $2)::geography, $3) and m.tg_id is not null order by score desc"#,
                 [longitude.into(), latitude.into(), SEARCH_RADIUS_IN_METERS.into()],
             ))
             .all(&self.db)
