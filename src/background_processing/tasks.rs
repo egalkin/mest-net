@@ -11,7 +11,6 @@ use anyhow::Result;
 use async_std::task;
 use chrono::Local;
 use scc::hash_map::OccupiedEntry;
-use sea_orm::{IntoActiveModel, Set};
 use std::time::Duration;
 use teloxide::prelude::*;
 use teloxide::types::ParseMode;
@@ -130,10 +129,12 @@ async fn process_request_expirations(
             booking_info.notifications_state &= !(1 << person_number);
         }
     }
-    let current_score = restaurant.score;
-    let mut restaurant: restaurant::ActiveModel = restaurant.into_active_model();
-    restaurant.score = Set((current_score - total_penalty).max(MIN_RESTAURANT_SCORE));
-    let _ = db_handler.update_restaurant(restaurant).await;
+    if total_penalty != 0 {
+        let score = (restaurant.score - total_penalty).max(MIN_RESTAURANT_SCORE);
+        let _ = db_handler
+            .update_restaurant_score_wiht_raw_sql(restaurant.id, score)
+            .await;
+    }
 }
 
 pub(crate) async fn wait_for_restaurants_response(

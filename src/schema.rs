@@ -281,21 +281,20 @@ async fn receive_booking_request(
                                         .get_booking_request_expiration_time(
                                             (person_number - 1) as usize,
                                         );
-                                    let current_score_value = restaurant.score;
-                                    let mut restaurant = restaurant.into_active_model();
+                                    let mut score = restaurant.score;
                                     if booking_info.notifications_state & (1 << person_number) != 0
                                     {
                                         if Local::now() > *booking_request_expiration_time {
-                                            restaurant.score = Set((current_score_value
-                                                - NOT_IN_TIME_ANSWER_PENALTY)
-                                                .max(MIN_RESTAURANT_SCORE));
+                                            score = (score - NOT_IN_TIME_ANSWER_PENALTY)
+                                                .max(MIN_RESTAURANT_SCORE);
                                         } else {
-                                            restaurant.score = Set((current_score_value
-                                                + IN_TIME_ANSWER_BONUS)
-                                                .min(MAX_RESTAURANT_SCORE));
+                                            score = (score + IN_TIME_ANSWER_BONUS)
+                                                .min(MAX_RESTAURANT_SCORE);
                                         }
                                     }
-                                    db_handler.update_restaurant(restaurant).await?;
+                                    db_handler
+                                        .update_restaurant_score_wiht_raw_sql(restaurant.id, score)
+                                        .await?;
                                 }
                                 log::info!(
                                             "{} manager with username = {:?} and user_id = {} {} booking request for {} persons",

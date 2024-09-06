@@ -2,8 +2,8 @@ use crate::entity::manager::{self};
 use crate::entity::prelude::{Manager, Restaurant};
 use crate::utils::constants::SEARCH_RADIUS_IN_METERS;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbBackend, DbErr,
-    EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, Statement,
+    ActiveModelTrait, ColumnTrait, ConnectOptions, ConnectionTrait, Database, DatabaseConnection,
+    DbBackend, DbErr, EntityTrait, ExecResult, ModelTrait, PaginatorTrait, QueryFilter, Statement,
 };
 use std::env;
 
@@ -13,7 +13,6 @@ pub struct DatabaseHandler {
 }
 
 type RestaurantModel = crate::entity::restaurant::Model;
-type RestaurantActiveModel = crate::entity::restaurant::ActiveModel;
 type ManagerModel = crate::entity::manager::Model;
 type ManagerActiveModel = crate::entity::manager::ActiveModel;
 
@@ -147,11 +146,19 @@ impl DatabaseHandler {
             })
     }
 
-    pub async fn update_restaurant(
+    pub async fn update_restaurant_score_wiht_raw_sql(
         &self,
-        restaurant: RestaurantActiveModel,
-    ) -> Result<RestaurantModel, DbErr> {
-        restaurant.update(&self.db).await
+        id: i32,
+        score: i32,
+    ) -> Result<ExecResult, DbErr> {
+        log::info!("Set score = {} for restaurant with id = {}", score, id);
+        self.db
+            .execute(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "Update restaurant set score = $1 where id = $2",
+                [score.into(), id.into()],
+            ))
+            .await
     }
 
     pub async fn update_manager(&self, manager: ManagerActiveModel) -> Result<ManagerModel, DbErr> {
