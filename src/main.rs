@@ -65,7 +65,9 @@ async fn main() -> Result<()> {
     let bot = Bot::from_env();
 
     bot.set_my_commands(BotCommand::bot_commands()).await?;
-    bot.set_chat_menu_button().menu_button(MenuButton::Commands).await?;
+    bot.set_chat_menu_button()
+        .menu_button(MenuButton::Commands)
+        .await?;
 
     {
         let bot = bot.clone();

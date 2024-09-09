@@ -74,8 +74,13 @@ impl Display for RestaurantWithManagerInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, FromJsonQueryResult, PartialEq)]
 #[serde(tag = "type", content = "content")]
 pub enum Schedule {
-    Regular { working_time: WorkingTime },
-    WithWeekends { weekday_working_time: WorkingTime, weekend_working_time: WorkingTime },
+    Regular {
+        working_time: WorkingTime,
+    },
+    WithWeekends {
+        weekday_working_time: WorkingTime,
+        weekend_working_time: WorkingTime,
+    },
 }
 
 impl Schedule {
@@ -94,10 +99,15 @@ impl Schedule {
             }
         }
         match &self {
-            Schedule::Regular { working_time } => {
-                match_in(passed_date_time, &working_time.start_time, &working_time.end_time)
-            }
-            Schedule::WithWeekends { weekday_working_time, weekend_working_time } => {
+            Schedule::Regular { working_time } => match_in(
+                passed_date_time,
+                &working_time.start_time,
+                &working_time.end_time,
+            ),
+            Schedule::WithWeekends {
+                weekday_working_time,
+                weekend_working_time,
+            } => {
                 let week_day = passed_date_time.weekday();
                 match week_day {
                     Fri => {
@@ -168,7 +178,10 @@ mod tests {
         fn regular_schedule_one_day_match_in() {
             let start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let end_time = NaiveTime::from_hms_milli_opt(23, 0, 0, 0).unwrap();
-            let working_time = WorkingTime { start_time, end_time };
+            let working_time = WorkingTime {
+                start_time,
+                end_time,
+            };
             let schedule = Regular { working_time };
 
             let current_date_time: DateTime<Local> =
@@ -181,7 +194,10 @@ mod tests {
         fn regular_schedule_one_day_not_match_in() {
             let start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let end_time = NaiveTime::from_hms_milli_opt(23, 0, 0, 0).unwrap();
-            let working_time = WorkingTime { start_time, end_time };
+            let working_time = WorkingTime {
+                start_time,
+                end_time,
+            };
             let schedule = Regular { working_time };
 
             let current_date_time: DateTime<Local> =
@@ -194,7 +210,10 @@ mod tests {
         fn regular_schedule_two_days_match_in() {
             let start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let end_time = NaiveTime::from_hms_milli_opt(3, 0, 0, 0).unwrap();
-            let working_time = WorkingTime { start_time, end_time };
+            let working_time = WorkingTime {
+                start_time,
+                end_time,
+            };
             let schedule = Regular { working_time };
 
             let current_date_time: DateTime<Local> =
@@ -207,7 +226,10 @@ mod tests {
         fn regular_schedule_two_days_not_match_in() {
             let start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let end_time = NaiveTime::from_hms_milli_opt(3, 0, 0, 0).unwrap();
-            let working_time = WorkingTime { start_time, end_time };
+            let working_time = WorkingTime {
+                start_time,
+                end_time,
+            };
             let schedule = Regular { working_time };
 
             let current_date_time: DateTime<Local> =
@@ -220,15 +242,22 @@ mod tests {
         fn with_weekends_schedule_weekday_match_in() {
             let weekday_start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let weekday_end_time = NaiveTime::from_hms_milli_opt(1, 0, 0, 0).unwrap();
-            let weekday_working_time =
-                WorkingTime { start_time: weekday_start_time, end_time: weekday_end_time };
+            let weekday_working_time = WorkingTime {
+                start_time: weekday_start_time,
+                end_time: weekday_end_time,
+            };
 
             let weekend_start_time = NaiveTime::from_hms_milli_opt(12, 0, 0, 0).unwrap();
             let weekend_end_time = NaiveTime::from_hms_milli_opt(6, 0, 0, 0).unwrap();
-            let weekend_working_time =
-                WorkingTime { start_time: weekend_start_time, end_time: weekend_end_time };
+            let weekend_working_time = WorkingTime {
+                start_time: weekend_start_time,
+                end_time: weekend_end_time,
+            };
 
-            let schedule = WithWeekends { weekday_working_time, weekend_working_time };
+            let schedule = WithWeekends {
+                weekday_working_time,
+                weekend_working_time,
+            };
 
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 10, 16, 0, 0).unwrap();
@@ -240,15 +269,22 @@ mod tests {
         fn with_weekends_schedule_weekday_not_match_in() {
             let weekday_start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let weekday_end_time = NaiveTime::from_hms_milli_opt(1, 0, 0, 0).unwrap();
-            let weekday_working_time =
-                WorkingTime { start_time: weekday_start_time, end_time: weekday_end_time };
+            let weekday_working_time = WorkingTime {
+                start_time: weekday_start_time,
+                end_time: weekday_end_time,
+            };
 
             let weekend_start_time = NaiveTime::from_hms_milli_opt(12, 0, 0, 0).unwrap();
             let weekend_end_time = NaiveTime::from_hms_milli_opt(6, 0, 0, 0).unwrap();
-            let weekend_working_time =
-                WorkingTime { start_time: weekend_start_time, end_time: weekend_end_time };
+            let weekend_working_time = WorkingTime {
+                start_time: weekend_start_time,
+                end_time: weekend_end_time,
+            };
 
-            let schedule = WithWeekends { weekday_working_time, weekend_working_time };
+            let schedule = WithWeekends {
+                weekday_working_time,
+                weekend_working_time,
+            };
 
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 10, 2, 0, 0).unwrap();
@@ -260,15 +296,22 @@ mod tests {
         fn with_weekends_schedule_friday_as_weekday_match_in() {
             let weekday_start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let weekday_end_time = NaiveTime::from_hms_milli_opt(1, 0, 0, 0).unwrap();
-            let weekday_working_time =
-                WorkingTime { start_time: weekday_start_time, end_time: weekday_end_time };
+            let weekday_working_time = WorkingTime {
+                start_time: weekday_start_time,
+                end_time: weekday_end_time,
+            };
 
             let weekend_start_time = NaiveTime::from_hms_milli_opt(12, 0, 0, 0).unwrap();
             let weekend_end_time = NaiveTime::from_hms_milli_opt(6, 0, 0, 0).unwrap();
-            let weekend_working_time =
-                WorkingTime { start_time: weekend_start_time, end_time: weekend_end_time };
+            let weekend_working_time = WorkingTime {
+                start_time: weekend_start_time,
+                end_time: weekend_end_time,
+            };
 
-            let schedule = WithWeekends { weekday_working_time, weekend_working_time };
+            let schedule = WithWeekends {
+                weekday_working_time,
+                weekend_working_time,
+            };
 
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 12, 0, 30, 0).unwrap();
@@ -280,15 +323,22 @@ mod tests {
         fn with_weekends_schedule_friday_as_weekday_not_match_in() {
             let weekday_start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let weekday_end_time = NaiveTime::from_hms_milli_opt(1, 0, 0, 0).unwrap();
-            let weekday_working_time =
-                WorkingTime { start_time: weekday_start_time, end_time: weekday_end_time };
+            let weekday_working_time = WorkingTime {
+                start_time: weekday_start_time,
+                end_time: weekday_end_time,
+            };
 
             let weekend_start_time = NaiveTime::from_hms_milli_opt(12, 0, 0, 0).unwrap();
             let weekend_end_time = NaiveTime::from_hms_milli_opt(6, 0, 0, 0).unwrap();
-            let weekend_working_time =
-                WorkingTime { start_time: weekend_start_time, end_time: weekend_end_time };
+            let weekend_working_time = WorkingTime {
+                start_time: weekend_start_time,
+                end_time: weekend_end_time,
+            };
 
-            let schedule = WithWeekends { weekday_working_time, weekend_working_time };
+            let schedule = WithWeekends {
+                weekday_working_time,
+                weekend_working_time,
+            };
 
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 12, 1, 30, 0).unwrap();
@@ -300,15 +350,22 @@ mod tests {
         fn with_weekends_schedule_friday_as_weekend_match_in() {
             let weekday_start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let weekday_end_time = NaiveTime::from_hms_milli_opt(1, 0, 0, 0).unwrap();
-            let weekday_working_time =
-                WorkingTime { start_time: weekday_start_time, end_time: weekday_end_time };
+            let weekday_working_time = WorkingTime {
+                start_time: weekday_start_time,
+                end_time: weekday_end_time,
+            };
 
             let weekend_start_time = NaiveTime::from_hms_milli_opt(12, 0, 0, 0).unwrap();
             let weekend_end_time = NaiveTime::from_hms_milli_opt(6, 0, 0, 0).unwrap();
-            let weekend_working_time =
-                WorkingTime { start_time: weekend_start_time, end_time: weekend_end_time };
+            let weekend_working_time = WorkingTime {
+                start_time: weekend_start_time,
+                end_time: weekend_end_time,
+            };
 
-            let schedule = WithWeekends { weekday_working_time, weekend_working_time };
+            let schedule = WithWeekends {
+                weekday_working_time,
+                weekend_working_time,
+            };
 
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 12, 16, 30, 0).unwrap();
@@ -320,15 +377,22 @@ mod tests {
         fn with_weekends_schedule_saturday_match_in() {
             let weekday_start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let weekday_end_time = NaiveTime::from_hms_milli_opt(1, 0, 0, 0).unwrap();
-            let weekday_working_time =
-                WorkingTime { start_time: weekday_start_time, end_time: weekday_end_time };
+            let weekday_working_time = WorkingTime {
+                start_time: weekday_start_time,
+                end_time: weekday_end_time,
+            };
 
             let weekend_start_time = NaiveTime::from_hms_milli_opt(12, 0, 0, 0).unwrap();
             let weekend_end_time = NaiveTime::from_hms_milli_opt(6, 0, 0, 0).unwrap();
-            let weekend_working_time =
-                WorkingTime { start_time: weekend_start_time, end_time: weekend_end_time };
+            let weekend_working_time = WorkingTime {
+                start_time: weekend_start_time,
+                end_time: weekend_end_time,
+            };
 
-            let schedule = WithWeekends { weekday_working_time, weekend_working_time };
+            let schedule = WithWeekends {
+                weekday_working_time,
+                weekend_working_time,
+            };
 
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 13, 5, 30, 0).unwrap();
@@ -340,15 +404,22 @@ mod tests {
         fn with_weekends_schedule_saturday_not_match_in() {
             let weekday_start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let weekday_end_time = NaiveTime::from_hms_milli_opt(1, 0, 0, 0).unwrap();
-            let weekday_working_time =
-                WorkingTime { start_time: weekday_start_time, end_time: weekday_end_time };
+            let weekday_working_time = WorkingTime {
+                start_time: weekday_start_time,
+                end_time: weekday_end_time,
+            };
 
             let weekend_start_time = NaiveTime::from_hms_milli_opt(12, 0, 0, 0).unwrap();
             let weekend_end_time = NaiveTime::from_hms_milli_opt(6, 0, 0, 0).unwrap();
-            let weekend_working_time =
-                WorkingTime { start_time: weekend_start_time, end_time: weekend_end_time };
+            let weekend_working_time = WorkingTime {
+                start_time: weekend_start_time,
+                end_time: weekend_end_time,
+            };
 
-            let schedule = WithWeekends { weekday_working_time, weekend_working_time };
+            let schedule = WithWeekends {
+                weekday_working_time,
+                weekend_working_time,
+            };
 
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 13, 6, 30, 0).unwrap();
@@ -360,15 +431,22 @@ mod tests {
         fn with_weekends_schedule_sunday_as_weekend_match_in() {
             let weekday_start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let weekday_end_time = NaiveTime::from_hms_milli_opt(1, 0, 0, 0).unwrap();
-            let weekday_working_time =
-                WorkingTime { start_time: weekday_start_time, end_time: weekday_end_time };
+            let weekday_working_time = WorkingTime {
+                start_time: weekday_start_time,
+                end_time: weekday_end_time,
+            };
 
             let weekend_start_time = NaiveTime::from_hms_milli_opt(12, 0, 0, 0).unwrap();
             let weekend_end_time = NaiveTime::from_hms_milli_opt(6, 0, 0, 0).unwrap();
-            let weekend_working_time =
-                WorkingTime { start_time: weekend_start_time, end_time: weekend_end_time };
+            let weekend_working_time = WorkingTime {
+                start_time: weekend_start_time,
+                end_time: weekend_end_time,
+            };
 
-            let schedule = WithWeekends { weekday_working_time, weekend_working_time };
+            let schedule = WithWeekends {
+                weekday_working_time,
+                weekend_working_time,
+            };
 
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 14, 5, 30, 0).unwrap();
@@ -380,15 +458,22 @@ mod tests {
         fn with_weekends_schedule_sunday_as_weekend_not_match_in() {
             let weekday_start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let weekday_end_time = NaiveTime::from_hms_milli_opt(1, 0, 0, 0).unwrap();
-            let weekday_working_time =
-                WorkingTime { start_time: weekday_start_time, end_time: weekday_end_time };
+            let weekday_working_time = WorkingTime {
+                start_time: weekday_start_time,
+                end_time: weekday_end_time,
+            };
 
             let weekend_start_time = NaiveTime::from_hms_milli_opt(12, 0, 0, 0).unwrap();
             let weekend_end_time = NaiveTime::from_hms_milli_opt(6, 0, 0, 0).unwrap();
-            let weekend_working_time =
-                WorkingTime { start_time: weekend_start_time, end_time: weekend_end_time };
+            let weekend_working_time = WorkingTime {
+                start_time: weekend_start_time,
+                end_time: weekend_end_time,
+            };
 
-            let schedule = WithWeekends { weekday_working_time, weekend_working_time };
+            let schedule = WithWeekends {
+                weekday_working_time,
+                weekend_working_time,
+            };
 
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 14, 6, 30, 0).unwrap();
@@ -400,15 +485,22 @@ mod tests {
         fn with_weekends_schedule_sunday_as_weekday_match_in() {
             let weekday_start_time = NaiveTime::from_hms_milli_opt(8, 0, 0, 0).unwrap();
             let weekday_end_time = NaiveTime::from_hms_milli_opt(1, 0, 0, 0).unwrap();
-            let weekday_working_time =
-                WorkingTime { start_time: weekday_start_time, end_time: weekday_end_time };
+            let weekday_working_time = WorkingTime {
+                start_time: weekday_start_time,
+                end_time: weekday_end_time,
+            };
 
             let weekend_start_time = NaiveTime::from_hms_milli_opt(12, 0, 0, 0).unwrap();
             let weekend_end_time = NaiveTime::from_hms_milli_opt(6, 0, 0, 0).unwrap();
-            let weekend_working_time =
-                WorkingTime { start_time: weekend_start_time, end_time: weekend_end_time };
+            let weekend_working_time = WorkingTime {
+                start_time: weekend_start_time,
+                end_time: weekend_end_time,
+            };
 
-            let schedule = WithWeekends { weekday_working_time, weekend_working_time };
+            let schedule = WithWeekends {
+                weekday_working_time,
+                weekend_working_time,
+            };
 
             let current_date_time: DateTime<Local> =
                 Local.with_ymd_and_hms(2024, 1, 14, 16, 30, 0).unwrap();

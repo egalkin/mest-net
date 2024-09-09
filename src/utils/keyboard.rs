@@ -33,7 +33,10 @@ fn make_keyboard(variants: Vec<&str>) -> KeyboardMarkup {
     let mut keyboard: Vec<Vec<KeyboardButton>> = vec![];
 
     for versions in variants.chunks(3) {
-        let row = versions.iter().map(|&version| KeyboardButton::new(version.to_owned())).collect();
+        let row = versions
+            .iter()
+            .map(|&version| KeyboardButton::new(version.to_owned()))
+            .collect();
 
         keyboard.push(row);
     }

@@ -45,7 +45,8 @@ impl<S> SkytableStorage<S> {
             &env::var("SKYTABLE_PASSWORD").unwrap(),
         );
         let mut db = config.connect().unwrap();
-        db.query_parse::<bool>(&query!("create space if not exists mest_net")).unwrap();
+        db.query_parse::<bool>(&query!("create space if not exists mest_net"))
+            .unwrap();
         db.query_parse::<bool>(&query!(
             "create model if not exists mest_net.dialogues(chat_id: uint64, dialogue: binary)"
         ))
@@ -55,7 +56,10 @@ impl<S> SkytableStorage<S> {
     }
 
     fn log_unexpected_error(chat_id: i64, err: Error) {
-        log::error!("Unexpected error occurs during fetching dialogue with chat id = {}", chat_id);
+        log::error!(
+            "Unexpected error occurs during fetching dialogue with chat id = {}",
+            chat_id
+        );
         log::error!("Error description: {:?}", err);
     }
 }
@@ -107,8 +111,10 @@ where
         dialogue: D,
     ) -> BoxFuture<'static, Result<(), Self::Error>> {
         Box::pin(async move {
-            let d =
-                self.serializer.serialize(&dialogue).map_err(SkytableStorageError::SerdeError)?;
+            let d = self
+                .serializer
+                .serialize(&dialogue)
+                .map_err(SkytableStorageError::SerdeError)?;
             let mut db = self.pool.get().await.unwrap();
 
             let insert_result = db
@@ -188,7 +194,11 @@ where
             };
 
             dialogue
-                .map(|d| self.serializer.deserialize(&d).map_err(SkytableStorageError::SerdeError))
+                .map(|d| {
+                    self.serializer
+                        .deserialize(&d)
+                        .map_err(SkytableStorageError::SerdeError)
+                })
                 .transpose()
         })
     }

@@ -61,18 +61,22 @@ pub(crate) fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync>
 }
 
 async fn invalid_input(bot: Bot, msg: Message) -> HandlerResult {
-    bot.send_message(msg.chat.id, "Please, send /start.").await?;
+    bot.send_message(msg.chat.id, "Please, send /start.")
+        .await?;
     Ok(())
 }
 
 /// COMMAND HANDLERS
 async fn help(bot: Bot, msg: Message) -> HandlerResult {
-    bot.send_message(msg.chat.id, BotCommand::descriptions().to_string()).await?;
+    bot.send_message(msg.chat.id, BotCommand::descriptions().to_string())
+        .await?;
     Ok(())
 }
 
 async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
-    bot.send_message(msg.chat.id, "Какая у вас роль?").reply_markup(make_role_keyboard()).await?;
+    bot.send_message(msg.chat.id, "Какая у вас роль?")
+        .reply_markup(make_role_keyboard())
+        .await?;
     dialogue.update(State::RoleSelection).await?;
     Ok(())
 }
@@ -83,7 +87,10 @@ async fn reset(
     dialogue: MyDialogue,
     msg: Message,
 ) -> HandlerResult {
-    if let Some(manager) = db_handler.find_manager_by_tg_id(msg.from().unwrap().id.0 as i64).await {
+    if let Some(manager) = db_handler
+        .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
+        .await
+    {
         let mut manager = manager.into_active_model();
         manager.tg_id = Set(None);
         manager.share_contact = Set(false);
@@ -131,10 +138,13 @@ async fn receive_role_selection(
             dialogue.update(State::ReceiveSearchRequest).await?;
         }
         Some("Администратор") => {
-            bot.send_message(msg.chat.id, include_str!("resources/greetings_for_admin.txt"))
-                .reply_markup(ReplyMarkup::kb_remove())
-                .parse_mode(ParseMode::Html)
-                .await?;
+            bot.send_message(
+                msg.chat.id,
+                include_str!("resources/greetings_for_admin.txt"),
+            )
+            .reply_markup(ReplyMarkup::kb_remove())
+            .parse_mode(ParseMode::Html)
+            .await?;
             dialogue.update(State::ReceiveAdminToken).await?
         }
         _ => {
@@ -156,7 +166,10 @@ async fn receive_admin_token(
             Some(token_manager) => {
                 let token_manager_id = token_manager.id;
                 let mut token_manager = token_manager.into_active_model();
-                match db_handler.find_manager_by_tg_id(msg.from().unwrap().id.0 as i64).await {
+                match db_handler
+                    .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
+                    .await
+                {
                     Some(tg_id_manager) if token_manager_id != tg_id_manager.id => {
                         bot.send_message(
                             msg.chat.id,
@@ -205,8 +218,9 @@ async fn receive_share_contact_allowance(
 ) -> HandlerResult {
     match msg.text() {
         Some(ans) if ans == "Да" || ans == "Нет" => {
-            if let Some(manager) =
-                db_handler.find_manager_by_tg_id(msg.from().unwrap().id.0 as i64).await
+            if let Some(manager) = db_handler
+                .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
+                .await
             {
                 let mut manager = manager.into_active_model();
                 manager.share_contact = Set(ans == "Да");
@@ -236,18 +250,21 @@ async fn receive_booking_request(
             if !text.starts_with("У вас есть места на")
                 || reply_to_message.from().unwrap().id == msg.from().unwrap().id
             {
-                bot.send_message(msg.chat.id, "Выбрано неподходящее сообщение для Reply").await?;
+                bot.send_message(msg.chat.id, "Выбрано неподходящее сообщение для Reply")
+                    .await?;
                 return Ok(());
             }
             let tokens = text.split_ascii_whitespace().collect::<Vec<&str>>();
             if let Ok(person_number) = tokens[tokens.len() - 2].parse::<u8>() {
                 match msg.text() {
                     Some(ans) if ans == "Да" || ans == "Нет" => {
-                        if let Some(manager) =
-                            db_handler.find_manager_by_tg_id(msg.from().unwrap().id.0 as i64).await
+                        if let Some(manager) = db_handler
+                            .find_manager_by_tg_id(msg.from().unwrap().id.0 as i64)
+                            .await
                         {
-                            if let Some(mut booking_info) =
-                                restaurants_booking_info.get_async(&manager.restaurant_id).await
+                            if let Some(mut booking_info) = restaurants_booking_info
+                                .get_async(&manager.restaurant_id)
+                                .await
                             {
                                 if ans == "Да" {
                                     booking_info.booking_state |= 1 << person_number;
@@ -257,8 +274,9 @@ async fn receive_booking_request(
                                             + Duration::from_secs(BOOKING_EXPIRATION_MINUTES * 60),
                                     );
                                 }
-                                if let Some(restaurant) =
-                                    db_handler.find_restaurant_by_id(manager.restaurant_id).await
+                                if let Some(restaurant) = db_handler
+                                    .find_restaurant_by_id(manager.restaurant_id)
+                                    .await
                                 {
                                     let booking_request_expiration_time = booking_info
                                         .get_booking_request_expiration_time(
@@ -294,7 +312,8 @@ async fn receive_booking_request(
                                     person_number
                                 );
                                 booking_info.notifications_state &= !(1 << person_number);
-                                bot.send_message(msg.chat.id, "Спасибо за ваш ответ").await?;
+                                bot.send_message(msg.chat.id, "Спасибо за ваш ответ")
+                                    .await?;
                             }
                         }
                     }
@@ -305,7 +324,8 @@ async fn receive_booking_request(
             }
         }
     } else {
-        bot.send_message(msg.chat.id, "Отправьте ответ исполоьзуя Reply").await?;
+        bot.send_message(msg.chat.id, "Отправьте ответ исполоьзуя Reply")
+            .await?;
     }
     Ok(())
 }
@@ -319,7 +339,8 @@ async fn receive_search_request(bot: Bot, dialogue: MyDialogue, msg: Message) ->
             dialogue.update(State::ReceivePersonNumber).await?;
         }
         _ => {
-            bot.send_message(msg.chat.id, "Некорректная команда").await?;
+            bot.send_message(msg.chat.id, "Некорректная команда")
+                .await?;
         }
     }
 
@@ -332,10 +353,13 @@ async fn receive_person_number(bot: Bot, dialogue: MyDialogue, msg: Message) -> 
             bot.send_message(msg.chat.id, "Отправьте локацию для поиска мест")
                 .reply_markup(make_location_keyboard())
                 .await?;
-            dialogue.update(State::ReceiveLocation { person_number }).await?;
+            dialogue
+                .update(State::ReceiveLocation { person_number })
+                .await?;
         }
         _ => {
-            bot.send_message(msg.chat.id, "Отправьте число гостей").await?;
+            bot.send_message(msg.chat.id, "Отправьте число гостей")
+                .await?;
         }
     }
 
@@ -401,7 +425,8 @@ async fn receive_location(
             dialogue.update(State::ReceiveSearchRequest).await?;
         }
         None => {
-            bot.send_message(msg.from().unwrap().id, "Отправьте локацию для поиска").await?;
+            bot.send_message(msg.from().unwrap().id, "Отправьте локацию для поиска")
+                .await?;
         }
     }
 
