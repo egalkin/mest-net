@@ -1,15 +1,16 @@
 use futures::future::BoxFuture;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
-use skytable::error::Error;
-use skytable::pool::ConnectionMgrTcp;
-use skytable::{pool, query, Config};
-use std::convert::Infallible;
-use std::env;
-use std::fmt::{Debug, Display};
-use std::sync::Arc;
-use teloxide::dispatching::dialogue::{Serializer, Storage};
-use teloxide::prelude::ChatId;
+use serde::{de::DeserializeOwned, Serialize};
+use skytable::{error::Error, pool, pool::ConnectionMgrTcp, query, Config};
+use std::{
+    convert::Infallible,
+    env,
+    fmt::{Debug, Display},
+    sync::Arc,
+};
+use teloxide::{
+    dispatching::dialogue::{Serializer, Storage},
+    prelude::ChatId,
+};
 use thiserror::Error;
 
 type SkytablePool = bb8::Pool<ConnectionMgrTcp>;
@@ -44,8 +45,7 @@ impl<S> SkytableStorage<S> {
             &env::var("SKYTABLE_PASSWORD").unwrap(),
         );
         let mut db = config.connect().unwrap();
-        db.query_parse::<bool>(&query!("create space if not exists mest_net"))
-            .unwrap();
+        db.query_parse::<bool>(&query!("create space if not exists mest_net")).unwrap();
         db.query_parse::<bool>(&query!(
             "create model if not exists mest_net.dialogues(chat_id: uint64, dialogue: binary)"
         ))
@@ -55,10 +55,7 @@ impl<S> SkytableStorage<S> {
     }
 
     fn log_unexpected_error(chat_id: i64, err: Error) {
-        log::error!(
-            "Unexpected error occurs during fetching dialogue with chat id = {}",
-            chat_id
-        );
+        log::error!("Unexpected error occurs during fetching dialogue with chat id = {}", chat_id);
         log::error!("Error description: {:?}", err);
     }
 }
@@ -110,10 +107,8 @@ where
         dialogue: D,
     ) -> BoxFuture<'static, Result<(), Self::Error>> {
         Box::pin(async move {
-            let d = self
-                .serializer
-                .serialize(&dialogue)
-                .map_err(SkytableStorageError::SerdeError)?;
+            let d =
+                self.serializer.serialize(&dialogue).map_err(SkytableStorageError::SerdeError)?;
             let mut db = self.pool.get().await.unwrap();
 
             let insert_result = db
@@ -193,11 +188,7 @@ where
             };
 
             dialogue
-                .map(|d| {
-                    self.serializer
-                        .deserialize(&d)
-                        .map_err(SkytableStorageError::SerdeError)
-                })
+                .map(|d| self.serializer.deserialize(&d).map_err(SkytableStorageError::SerdeError))
                 .transpose()
         })
     }

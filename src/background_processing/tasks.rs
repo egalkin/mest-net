@@ -1,21 +1,23 @@
-use crate::db::DatabaseHandler;
-use crate::entity::restaurant;
-use crate::model::booking_info::BookingInfo;
-use crate::model::commands::MestCheckCommand;
-use crate::model::types::{Db, HandlerResult};
-use crate::utils::constants::{
-    BOOKING_REQUEST_EXPIRATION_MINUTES, MIN_RESTAURANT_SCORE, NO_ANSWER_PENALTY,
+use crate::{
+    db::DatabaseHandler,
+    entity::restaurant,
+    model::{
+        booking_info::BookingInfo,
+        commands::MestCheckCommand,
+        types::{Db, HandlerResult},
+    },
+    utils::{
+        constants::{BOOKING_REQUEST_EXPIRATION_MINUTES, MIN_RESTAURANT_SCORE, NO_ANSWER_PENALTY},
+        keyboard::make_answer_keyboard,
+    },
 };
-use crate::utils::keyboard::make_answer_keyboard;
 use anyhow::Result;
 use async_std::task;
 use chrono::Local;
 use scc::hash_map::OccupiedEntry;
 use std::time::Duration;
-use teloxide::prelude::*;
-use teloxide::types::ParseMode;
-use tokio::sync::mpsc::Receiver;
-use tokio::task::JoinSet;
+use teloxide::{prelude::*, types::ParseMode};
+use tokio::{sync::mpsc::Receiver, task::JoinSet};
 
 type Restaurant = restaurant::RestaurantWithManagerInfo;
 
@@ -27,14 +29,9 @@ pub(crate) async fn send_mest_check_notification(
 ) {
     while let Some(cmd) = rx.recv().await {
         match cmd {
-            MestCheckCommand::Check {
-                person_number,
-                longitude,
-                latitude,
-            } => {
-                let restaurants: Vec<Restaurant> = db_handler
-                    .find_closest_restaurants(longitude, latitude)
-                    .await;
+            MestCheckCommand::Check { person_number, longitude, latitude } => {
+                let restaurants: Vec<Restaurant> =
+                    db_handler.find_closest_restaurants(longitude, latitude).await;
                 let mut set: JoinSet<Result<()>> = JoinSet::new();
                 for restaurant in restaurants {
                     let tg_id = restaurant.manager_tg_id;
@@ -107,9 +104,7 @@ async fn process_request_expirations(
     if total_penalty != 0 {
         let score = (restaurant.score - total_penalty).max(MIN_RESTAURANT_SCORE);
         if score != restaurant.score {
-            let _ = db_handler
-                .update_restaurant_score_wiht_raw_sql(restaurant.id, score)
-                .await;
+            let _ = db_handler.update_restaurant_score_wiht_raw_sql(restaurant.id, score).await;
         }
     }
 }
@@ -125,9 +120,8 @@ pub(crate) async fn wait_for_restaurants_response(
 ) -> HandlerResult {
     let start_time = Local::now();
     let time_to_finish = start_time + Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60);
-    let closest_restaurants: Vec<Restaurant> = db_handler
-        .find_closest_restaurants(longitude, latitude)
-        .await;
+    let closest_restaurants: Vec<Restaurant> =
+        db_handler.find_closest_restaurants(longitude, latitude).await;
     let mut answered_restaurants_ids: Vec<i32> = Vec::with_capacity(closest_restaurants.len());
     loop {
         let current_time = Local::now();
@@ -165,9 +159,8 @@ pub(crate) async fn wait_for_restaurants_response(
     }
     let person_noun_form = resolve_person_noun_form(person_number);
     if !answered_restaurants_ids.is_empty() {
-        let answered_restaurants = db_handler
-            .find_restaurants_by_ids(answered_restaurants_ids)
-            .await;
+        let answered_restaurants =
+            db_handler.find_restaurants_by_ids(answered_restaurants_ids).await;
         let mut formatted_answer = String::new();
         for restaurant in answered_restaurants {
             formatted_answer.push_str(&format!("<b>•</b> {}\n", restaurant));
@@ -184,7 +177,8 @@ pub(crate) async fn wait_for_restaurants_response(
         bot.send_message(
             msg.chat.id,
             format!(
-                "Список ресторанов, где есть места на {person_number} {person_noun_form}:\n{formatted_answer}"
+                "Список ресторанов, где есть места на {person_number} \
+                 {person_noun_form}:\n{formatted_answer}"
             ),
         )
         .disable_web_page_preview(true)

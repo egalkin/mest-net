@@ -14,9 +14,5 @@ pub(crate) enum BotCommand {
 }
 
 pub(crate) enum MestCheckCommand {
-    Check {
-        person_number: u8,
-        longitude: f64,
-        latitude: f64,
-    },
+    Check { person_number: u8, longitude: f64, latitude: f64 },
 }

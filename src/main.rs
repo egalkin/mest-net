@@ -6,24 +6,29 @@ mod model;
 mod schema;
 mod utils;
 
-use crate::background_processing::tasks::send_mest_check_notification;
-use crate::db::DatabaseHandler;
-use crate::model::commands::{BotCommand, MestCheckCommand};
+use crate::{
+    background_processing::tasks::send_mest_check_notification,
+    db::DatabaseHandler,
+    model::commands::{BotCommand, MestCheckCommand},
+};
 use anyhow::Result;
 use dotenv::dotenv;
-use model::types::*;
-use model::{booking_info::BookingInfo, state::State};
+use model::{booking_info::BookingInfo, state::State, types::*};
 
 use schema::schema;
 
 use log::LevelFilter;
-use log4rs::append::console::ConsoleAppender;
-use log4rs::config::{Appender, Config, Root};
+use log4rs::{
+    append::console::ConsoleAppender,
+    config::{Appender, Config, Root},
+};
 use std::sync::Arc;
-use teloxide::dispatching::dialogue::serializer::Bincode;
-use teloxide::dispatching::dialogue::{ErasedStorage, Storage};
-use teloxide::types::MenuButton;
-use teloxide::{prelude::*, utils::command::BotCommands};
+use teloxide::{
+    dispatching::dialogue::{serializer::Bincode, ErasedStorage, Storage},
+    prelude::*,
+    types::MenuButton,
+    utils::command::BotCommands,
+};
 use tokio::sync::mpsc;
 
 use crate::dialogue_storage::skytable_storage::SkytableStorage;
@@ -60,9 +65,7 @@ async fn main() -> Result<()> {
     let bot = Bot::from_env();
 
     bot.set_my_commands(BotCommand::bot_commands()).await?;
-    bot.set_chat_menu_button()
-        .menu_button(MenuButton::Commands)
-        .await?;
+    bot.set_chat_menu_button().menu_button(MenuButton::Commands).await?;
 
     {
         let bot = bot.clone();
