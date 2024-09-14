@@ -357,12 +357,8 @@ async fn receive_person_number(bot: Bot, dialogue: MyDialogue, msg: Message) -> 
                 .update(State::ReceiveLocation { person_number })
                 .await?;
         }
-        Some(Ok(_)) => {
-            bot.send_message(msg.chat.id, "Отправьте число от 1 до 6")
-                .await?;
-        }
         _ => {
-            bot.send_message(msg.chat.id, "Отправьте число гостей")
+            bot.send_message(msg.chat.id, "Отправьте число от 1 до 6")
                 .await?;
         }
     }
