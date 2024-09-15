@@ -1,3 +1,4 @@
+use bb8::RunError;
 use futures::future::BoxFuture;
 use serde::{de::DeserializeOwned, Serialize};
 use skytable::{error::Error, pool, pool::ConnectionMgrTcp, query, Config};
@@ -15,6 +16,9 @@ use thiserror::Error;
 
 type SkytablePool = bb8::Pool<ConnectionMgrTcp>;
 
+const ROW_ALREADY_EXISTS_CODE: u16 = 108;
+const ROW_NOT_FOUND_CODE: u16 = 111;
+
 #[derive(Debug, Error)]
 pub enum SkytableStorageError<SE>
 where
@@ -23,12 +27,15 @@ where
     #[error("dialogue serialization error: {0}")]
     SerdeError(SE),
 
+    #[error("run error: {0}")]
+    RunError(#[from] RunError<Error>),
+
+    #[error("skytable error: {0}")]
+    SkytableError(#[from] Error),
+
     /// Returned from [`SkytableStorage::remove_dialogue`].
     #[error("row not found")]
     DialogueNotFound,
-
-    #[error("unexpected error")]
-    UnexpectedError,
 }
 
 pub struct SkytableStorage<S> {
@@ -44,18 +51,16 @@ impl<S> SkytableStorage<S> {
             &env::var("SKYTABLE_USER").unwrap(),
             &env::var("SKYTABLE_PASSWORD").unwrap(),
         );
-        let mut db = config.connect().unwrap();
-        db.query_parse::<bool>(&query!("create space if not exists mest_net"))
-            .unwrap();
+        let mut db = config.connect()?;
+        db.query_parse::<bool>(&query!("create space if not exists mest_net"))?;
         db.query_parse::<bool>(&query!(
             "create model if not exists mest_net.dialogues(chat_id: uint64, dialogue: binary)"
-        ))
-        .unwrap();
+        ))?;
         let pool = pool::get_async(32, config).await.unwrap();
         Ok(Arc::new(Self { pool, serializer }))
     }
 
-    fn log_unexpected_error(chat_id: i64, err: Error) {
+    fn log_unexpected_error(chat_id: i64, err: &Error) {
         log::error!(
             "Unexpected error occurs during fetching dialogue with chat id = {}",
             chat_id
@@ -77,9 +82,9 @@ where
         ChatId(chat_id): ChatId,
     ) -> BoxFuture<'static, Result<(), Self::Error>> {
         Box::pin(async move {
-            let mut db = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await.unwrap();
 
-            let delete_result = db
+            let delete_result = conn
                 .query_parse::<()>(&query!(
                     "delete from mest_net.dialogues where chat_id = ?",
                     chat_id as u64
@@ -92,13 +97,13 @@ where
                     Ok(())
                 }
                 Err(skytable_err) => match skytable_err {
-                    Error::ServerError(111) => {
+                    Error::ServerError(ROW_NOT_FOUND_CODE) => {
                         log::info!("Dialogue with chat id = {} not found", chat_id);
                         Err(SkytableStorageError::DialogueNotFound)
                     }
                     err => {
-                        SkytableStorage::<S>::log_unexpected_error(chat_id, err);
-                        Err(SkytableStorageError::UnexpectedError)
+                        SkytableStorage::<S>::log_unexpected_error(chat_id, &err);
+                        Err(SkytableStorageError::SkytableError(err))
                     }
                 },
             }
@@ -115,9 +120,9 @@ where
                 .serializer
                 .serialize(&dialogue)
                 .map_err(SkytableStorageError::SerdeError)?;
-            let mut db = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await.unwrap();
 
-            let insert_result = db
+            let insert_result = conn
                 .query_parse::<()>(&query!(
                     "insert into mest_net.dialogues(?, ?)",
                     chat_id as u64,
@@ -131,8 +136,8 @@ where
                     Ok(())
                 }
                 Err(skytable_err) => match skytable_err {
-                    Error::ServerError(108) => {
-                        let update_result = db
+                    Error::ServerError(ROW_ALREADY_EXISTS_CODE) => {
+                        let update_result = conn
                             .query_parse::<()>(&query!(
                                 "update mest_net.dialogues set dialogue = ? where chat_id = ?",
                                 &d,
@@ -149,14 +154,14 @@ where
                                 Ok(())
                             }
                             Err(err) => {
-                                SkytableStorage::<S>::log_unexpected_error(chat_id, err);
-                                Err(SkytableStorageError::UnexpectedError)
+                                SkytableStorage::<S>::log_unexpected_error(chat_id, &err);
+                                Err(SkytableStorageError::SkytableError(skytable_err))
                             }
                         }
                     }
                     err => {
-                        SkytableStorage::<S>::log_unexpected_error(chat_id, err);
-                        Err(SkytableStorageError::UnexpectedError)
+                        SkytableStorage::<S>::log_unexpected_error(chat_id, &err);
+                        Err(SkytableStorageError::SkytableError(err))
                     }
                 },
             }
@@ -168,9 +173,9 @@ where
         ChatId(chat_id): ChatId,
     ) -> BoxFuture<'static, Result<Option<D>, Self::Error>> {
         Box::pin(async move {
-            let mut db = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await.unwrap();
 
-            let dialogue: Option<Vec<u8>> = match db
+            let dialogue: Option<Vec<u8>> = match conn
                 .query_parse::<(Vec<u8>,)>(&query!(
                     "select dialogue from mest_net.dialogues where chat_id = ?",
                     chat_id as u64
@@ -182,12 +187,12 @@ where
                     Some(val.0)
                 }
                 Err(skytable_err) => match skytable_err {
-                    Error::ServerError(111) => {
+                    Error::ServerError(ROW_NOT_FOUND_CODE) => {
                         log::info!("Dialogue with chat id = {} not found", chat_id);
                         None
                     }
                     err => {
-                        SkytableStorage::<S>::log_unexpected_error(chat_id, err);
+                        SkytableStorage::<S>::log_unexpected_error(chat_id, &err);
                         None
                     }
                 },
