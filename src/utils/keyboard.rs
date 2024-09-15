@@ -1,6 +1,9 @@
 use crate::utils::constants::SEARCH_REQUEST_MESSAGE;
 
+use lazy_static::lazy_static;
 use teloxide::types::{ButtonRequest, KeyboardButton, KeyboardMarkup};
+
+use super::constants::{MAX_SUPPORTED_PERSONS, MIN_SUPPORTED_PERSONS};
 
 pub fn make_location_keyboard() -> KeyboardMarkup {
     let mut keyboard: Vec<Vec<KeyboardButton>> = vec![];
@@ -13,31 +16,41 @@ pub fn make_location_keyboard() -> KeyboardMarkup {
     markup
 }
 
+lazy_static! {
+    static ref SUPPORTED_PERSONS_VARIANTS: Vec<String> = {
+        (MIN_SUPPORTED_PERSONS..=MAX_SUPPORTED_PERSONS)
+            .map(|i| i.to_string())
+            .collect()
+    };
+    static ref SEARCH_VARIANTS: Vec<String> = vec![SEARCH_REQUEST_MESSAGE.to_owned()];
+    static ref ROLE_VARIANTS: Vec<String> = vec![
+        "Обычный пользователь".to_owned(),
+        "Администратор".to_owned()
+    ];
+    static ref ANSWER_VARIANTS: Vec<String> = vec!["Да".to_owned(), "Нет".to_owned()];
+}
+
 pub fn make_number_keyboard() -> KeyboardMarkup {
-    make_keyboard(vec!["1", "2", "3", "4", "5", "6"])
+    make_keyborad_from_string(&SUPPORTED_PERSONS_VARIANTS)
 }
 
 pub fn make_search_keyboard() -> KeyboardMarkup {
-    make_keyboard(vec![SEARCH_REQUEST_MESSAGE])
+    make_keyborad_from_string(&SEARCH_VARIANTS)
 }
 
 pub fn make_role_keyboard() -> KeyboardMarkup {
-    make_keyboard(vec!["Обычный пользователь", "Администратор"])
+    make_keyborad_from_string(&ROLE_VARIANTS)
 }
 
 pub fn make_answer_keyboard() -> KeyboardMarkup {
-    make_keyboard(vec!["Да", "Нет"])
+    make_keyborad_from_string(&ANSWER_VARIANTS)
 }
 
-fn make_keyboard(variants: Vec<&str>) -> KeyboardMarkup {
+fn make_keyborad_from_string(variants: &[String]) -> KeyboardMarkup {
     let mut keyboard: Vec<Vec<KeyboardButton>> = vec![];
 
     for versions in variants.chunks(3) {
-        let row = versions
-            .iter()
-            .map(|&version| KeyboardButton::new(version.to_owned()))
-            .collect();
-
+        let row = versions.iter().map(KeyboardButton::new).collect();
         keyboard.push(row);
     }
 
