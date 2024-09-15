@@ -349,7 +349,7 @@ async fn receive_search_request(bot: Bot, dialogue: MyDialogue, msg: Message) ->
 
 async fn receive_person_number(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
     match msg.text().map(|text| text.parse::<u8>()) {
-        Some(Ok(person_number)) => {
+        Some(Ok(person_number)) if person_number >= 1 && person_number <= 6 => {
             bot.send_message(msg.chat.id, "Отправьте локацию для поиска мест")
                 .reply_markup(make_location_keyboard())
                 .await?;
@@ -358,7 +358,7 @@ async fn receive_person_number(bot: Bot, dialogue: MyDialogue, msg: Message) -> 
                 .await?;
         }
         _ => {
-            bot.send_message(msg.chat.id, "Отправьте число гостей")
+            bot.send_message(msg.chat.id, "Отправьте число от 1 до 6")
                 .await?;
         }
     }
