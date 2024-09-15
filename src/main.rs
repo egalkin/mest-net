@@ -22,7 +22,7 @@ use log4rs::{
     append::console::ConsoleAppender,
     config::{Appender, Config, Root},
 };
-use std::sync::Arc;
+use std::{env, sync::Arc};
 use teloxide::{
     dispatching::dialogue::{serializer::Bincode, ErasedStorage, Storage},
     prelude::*,
@@ -59,8 +59,20 @@ async fn main() -> Result<()> {
             .insert(restaurant.id, BookingInfo::new(restaurant.name.clone()));
     }
 
-    let skytable_storage: Arc<ErasedStorage<State>> =
-        SkytableStorage::open(Bincode).await.unwrap().erase();
+    let skytable_storage: Arc<ErasedStorage<State>> = SkytableStorage::open(
+        &env::var("SKYTABLE_HOST").unwrap(),
+        env::var("SKYTABLE_PORT").unwrap().parse::<u16>().unwrap(),
+        &env::var("SKYTABLE_USER").unwrap(),
+        &env::var("SKYTABLE_PASSWORD").unwrap(),
+        env::var("SKYTABLE_MAX_CONNECTIONS")
+            .unwrap()
+            .parse::<u32>()
+            .unwrap(),
+        Bincode,
+    )
+    .await
+    .unwrap()
+    .erase();
 
     let bot = Bot::from_env();
 

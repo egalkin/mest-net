@@ -4,7 +4,6 @@ use serde::{de::DeserializeOwned, Serialize};
 use skytable::{error::Error, pool, pool::ConnectionMgrTcp, query, Config};
 use std::{
     convert::Infallible,
-    env,
     fmt::{Debug, Display},
     sync::Arc,
 };
@@ -44,19 +43,26 @@ pub struct SkytableStorage<S> {
 }
 
 impl<S> SkytableStorage<S> {
-    pub async fn open(serializer: S) -> Result<Arc<Self>, SkytableStorageError<Infallible>> {
+    pub async fn open(
+        skytable_host: &str,
+        skytable_port: u16,
+        skytable_user: &str,
+        skytable_password: &str,
+        max_connections: u32,
+        serializer: S,
+    ) -> Result<Arc<Self>, SkytableStorageError<Infallible>> {
         let config = Config::new(
-            &env::var("SKYTABLE_HOST").unwrap(),
-            env::var("SKYTABLE_PORT").unwrap().parse::<u16>().unwrap(),
-            &env::var("SKYTABLE_USER").unwrap(),
-            &env::var("SKYTABLE_PASSWORD").unwrap(),
+            skytable_host,
+            skytable_port,
+            skytable_user,
+            skytable_password,
         );
-        let mut db = config.connect()?;
-        db.query_parse::<bool>(&query!("create space if not exists mest_net"))?;
-        db.query_parse::<bool>(&query!(
+        let mut conn = config.connect()?;
+        conn.query_parse::<bool>(&query!("create space if not exists mest_net"))?;
+        conn.query_parse::<bool>(&query!(
             "create model if not exists mest_net.dialogues(chat_id: uint64, dialogue: binary)"
         ))?;
-        let pool = pool::get_async(32, config).await.unwrap();
+        let pool = pool::get_async(max_connections, config).await.unwrap();
         Ok(Arc::new(Self { pool, serializer }))
     }
 
