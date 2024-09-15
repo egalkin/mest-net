@@ -10,8 +10,8 @@ use crate::{
     utils::{
         constants::{
             BOOKING_EXPIRATION_MINUTES, FEEDBACK_FORM_URL, IN_TIME_ANSWER_BONUS,
-            MAX_RESTAURANT_SCORE, MIN_RESTAURANT_SCORE, NOT_IN_TIME_ANSWER_PENALTY,
-            SEARCH_REQUEST_MESSAGE,
+            MAX_RESTAURANT_SCORE, MAX_SUPPORTED_PERSONS, MIN_RESTAURANT_SCORE,
+            MIN_SUPPORTED_PERSONS, NOT_IN_TIME_ANSWER_PENALTY, SEARCH_REQUEST_MESSAGE,
         },
         keyboard::*,
     },
@@ -348,7 +348,9 @@ async fn receive_search_request(bot: Bot, dialogue: MyDialogue, msg: Message) ->
 
 async fn receive_person_number(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
     match msg.text().map(|text| text.parse::<u8>()) {
-        Some(Ok(person_number)) if (1..=6).contains(&person_number) => {
+        Some(Ok(person_number))
+            if (MIN_SUPPORTED_PERSONS..=MAX_SUPPORTED_PERSONS).contains(&person_number) =>
+        {
             bot.send_message(msg.chat.id, "Отправьте локацию для поиска мест")
                 .reply_markup(make_location_keyboard())
                 .await?;
@@ -357,8 +359,14 @@ async fn receive_person_number(bot: Bot, dialogue: MyDialogue, msg: Message) -> 
                 .await?;
         }
         _ => {
-            bot.send_message(msg.chat.id, "Отправьте число от 1 до 6")
-                .await?;
+            bot.send_message(
+                msg.chat.id,
+                format!(
+                    "Отправьте число от {} до {}",
+                    MIN_SUPPORTED_PERSONS, MAX_SUPPORTED_PERSONS
+                ),
+            )
+            .await?;
         }
     }
 
