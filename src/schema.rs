@@ -50,7 +50,6 @@ pub(crate) fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync>
             case![State::ReceiveShareContactAllowance].endpoint(receive_share_contact_allowance),
         )
         .branch(case![State::WaitingForRequests].endpoint(receive_booking_request))
-        // .branch(case![State::WaitingForRequests].endpoint())
         //  User flow
         .branch(case![State::ReceiveSearchRequest].endpoint(receive_search_request))
         .branch(case![State::ReceivePersonNumber].endpoint(receive_person_number))
