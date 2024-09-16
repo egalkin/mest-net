@@ -30,6 +30,7 @@ use teloxide::{
     utils::command::BotCommands,
 };
 use tokio::sync::{broadcast, mpsc};
+use utils::constants::{ANSWER_CHANNEL_SIZE, COMMAND_CHANNEL_SIZE};
 
 use crate::dialogue_storage::skytable_storage::SkytableStorage;
 
@@ -50,8 +51,8 @@ async fn main() -> Result<()> {
 
     let restaurants = db_handler.get_all_restaurants().await;
     let restaurants_number = db_handler.count_restaurants().await;
-    let (command_tx, command_rx) = mpsc::channel::<MestCheckCommand>(32);
-    let (answer_tx, _) = broadcast::channel::<(i32, bool, u8)>(32);
+    let (command_tx, command_rx) = mpsc::channel::<MestCheckCommand>(COMMAND_CHANNEL_SIZE);
+    let (answer_tx, _) = broadcast::channel::<(i32, bool, u8)>(ANSWER_CHANNEL_SIZE);
 
     let restaurants_booking_info: Db<i32, BookingInfo> = Arc::new(scc::HashMap::new());
 
