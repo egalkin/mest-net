@@ -12,11 +12,3 @@ pub(crate) enum BotCommand {
     #[command(description = "Обратная связь")]
     Feedback,
 }
-
-pub(crate) enum MestCheckCommand {
-    Check {
-        person_number: u8,
-        longitude: f64,
-        latitude: f64,
-    },
-}

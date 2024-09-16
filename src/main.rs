@@ -9,7 +9,7 @@ mod utils;
 use crate::{
     background_processing::tasks::send_mest_check_notification,
     db::DatabaseHandler,
-    model::commands::{BotCommand, MestCheckCommand},
+    model::{bot_command::BotCommand, mest_check_command::MestCheckCommand},
 };
 use anyhow::Result;
 use dotenv::dotenv;
@@ -29,7 +29,7 @@ use teloxide::{
     types::MenuButton,
     utils::command::BotCommands,
 };
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
 
 use crate::dialogue_storage::skytable_storage::SkytableStorage;
 
@@ -50,7 +50,8 @@ async fn main() -> Result<()> {
 
     let restaurants = db_handler.get_all_restaurants().await;
     let restaurants_number = db_handler.count_restaurants().await;
-    let (tx, rx) = mpsc::channel::<MestCheckCommand>(32);
+    let (command_tx, command_rx) = mpsc::channel::<MestCheckCommand>(32);
+    let (answer_tx, _) = broadcast::channel::<(i32, bool, u8)>(32);
 
     let restaurants_booking_info: Db<i32, BookingInfo> = Arc::new(scc::HashMap::new());
 
@@ -86,8 +87,13 @@ async fn main() -> Result<()> {
         let db_handler = db_handler.clone();
         let restaurants_booking_info = restaurants_booking_info.clone();
         tokio::spawn(async move {
-            send_mest_check_notification(bot, rx, db_handler.clone(), restaurants_booking_info)
-                .await
+            send_mest_check_notification(
+                bot,
+                command_rx,
+                db_handler.clone(),
+                restaurants_booking_info,
+            )
+            .await
         });
     }
 
@@ -96,7 +102,8 @@ async fn main() -> Result<()> {
             db_handler.clone(),
             skytable_storage.clone(),
             restaurants_booking_info.clone(),
-            tx.clone(),
+            command_tx.clone(),
+            answer_tx.clone(),
             restaurants_number
         ])
         .enable_ctrlc_handler()

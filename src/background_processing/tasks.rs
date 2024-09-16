@@ -3,7 +3,7 @@ use crate::{
     entity::restaurant,
     model::{
         booking_info::BookingInfo,
-        commands::MestCheckCommand,
+        mest_check_command::MestCheckCommand,
         types::{Db, HandlerResult},
     },
     utils::{
@@ -12,12 +12,17 @@ use crate::{
     },
 };
 use anyhow::Result;
+
 use async_std::task;
 use chrono::Local;
 use scc::hash_map::OccupiedEntry;
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 use teloxide::{prelude::*, types::ParseMode};
-use tokio::{sync::mpsc::Receiver, task::JoinSet};
+use tokio::{
+    select,
+    sync::{broadcast, mpsc::Receiver},
+    task::JoinSet,
+};
 
 type Restaurant = restaurant::RestaurantWithManagerInfo;
 
@@ -28,64 +33,49 @@ pub(crate) async fn send_mest_check_notification(
     restaurants_booking_info: Db<i32, BookingInfo>,
 ) {
     while let Some(cmd) = rx.recv().await {
-        match cmd {
-            MestCheckCommand::Check {
-                person_number,
-                longitude,
-                latitude,
-            } => {
-                let restaurants: Vec<Restaurant> = db_handler
-                    .find_closest_restaurants(longitude, latitude)
-                    .await;
-                let mut set: JoinSet<Result<()>> = JoinSet::new();
-                for restaurant in restaurants {
-                    let tg_id = restaurant.manager_tg_id;
-                    let bot = bot.clone();
-                    if let Some(mut booking_info) =
-                        restaurants_booking_info.get_async(&restaurant.id).await
-                    {
-                        if booking_info.booking_state & (1 << person_number) != 0 {
-                            let booking_expiration_time = booking_info
-                                .get_booking_expiration_time((person_number - 1) as usize);
-                            if Local::now() > *booking_expiration_time {
-                                booking_info.booking_state &= !(1 << person_number)
-                            } else {
-                                continue;
-                            }
-                        }
-
-                        process_request_expirations(
-                            db_handler.clone(),
-                            &mut booking_info,
-                            restaurant,
-                        )
-                        .await;
-
-                        if booking_info.notifications_state & (1 << person_number) == 0 {
-                            booking_info.notifications_state |= 1 << person_number;
-                            booking_info.set_booking_request_expiration_time(
-                                (person_number - 1) as usize,
-                                Local::now()
-                                    + Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60),
-                            );
-                            set.spawn(async move {
-                                let person_noun_form = resolve_person_noun_form(person_number);
-                                bot.send_message(
-                                    UserId(tg_id as u64),
-                                    format!(
-                                        "У вас есть места на {person_number} {person_noun_form}?"
-                                    ),
-                                )
-                                .reply_markup(make_answer_keyboard())
-                                .await?;
-                                Ok(())
-                            });
-                        }
+        let person_number = cmd.person_number;
+        let restaurants: Vec<Restaurant> = db_handler
+            .find_closest_restaurants(cmd.longitude, cmd.latitude)
+            .await;
+        let mut set: JoinSet<Result<()>> = JoinSet::new();
+        for restaurant in restaurants {
+            let tg_id = restaurant.manager_tg_id;
+            let bot = bot.clone();
+            if let Some(mut booking_info) = restaurants_booking_info.get_async(&restaurant.id).await
+            {
+                if booking_info.booking_state & (1 << person_number) != 0 {
+                    let booking_expiration_time =
+                        booking_info.get_booking_expiration_time((person_number - 1) as usize);
+                    if Local::now() > *booking_expiration_time {
+                        booking_info.booking_state &= !(1 << person_number)
+                    } else {
+                        continue;
                     }
                 }
-                while (set.join_next().await).is_some() {}
+
+                process_request_expirations(db_handler.clone(), &mut booking_info, restaurant)
+                    .await;
+
+                if booking_info.notifications_state & (1 << person_number) == 0 {
+                    booking_info.notifications_state |= 1 << person_number;
+                    booking_info.set_booking_request_expiration_time(
+                        (person_number - 1) as usize,
+                        Local::now() + Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60),
+                    );
+                    set.spawn(async move {
+                        let person_noun_form = resolve_person_noun_form(person_number);
+                        bot.send_message(
+                            UserId(tg_id as u64),
+                            format!("У вас есть места на {person_number} {person_noun_form}?"),
+                        )
+                        .reply_markup(make_answer_keyboard())
+                        .await?;
+                        Ok(())
+                    });
+                }
             }
         }
+        while (set.join_next().await).is_some() {}
     }
 }
 
@@ -118,52 +108,54 @@ async fn process_request_expirations(
 
 pub(crate) async fn wait_for_restaurants_response(
     bot: Bot,
-    msg: Message,
+    chat_id: ChatId,
+    mut rx: broadcast::Receiver<(i32, bool, u8)>,
     db_handler: DatabaseHandler,
-    longitude: f64,
-    latitude: f64,
+    mest_check_command: MestCheckCommand,
     restaurants_booking_info: Db<i32, BookingInfo>,
-    person_number: u8,
 ) -> HandlerResult {
-    let start_time = Local::now();
-    let time_to_finish = start_time + Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60);
+    let person_number = mest_check_command.person_number;
     let closest_restaurants: Vec<Restaurant> = db_handler
-        .find_closest_restaurants(longitude, latitude)
+        .find_closest_restaurants(mest_check_command.longitude, mest_check_command.latitude)
         .await;
+    let mut awaited_restaurants_ids: HashSet<i32> = closest_restaurants
+        .iter()
+        .map(|restaurant| restaurant.id)
+        .collect();
     let mut answered_restaurants_ids: Vec<i32> = Vec::with_capacity(closest_restaurants.len());
-    loop {
-        let current_time = Local::now();
-        if current_time < time_to_finish {
-            answered_restaurants_ids.clear();
-            let mut no_answers = 0;
-            for restaurant in &*closest_restaurants {
-                if let Some(mut booking_info) =
-                    restaurants_booking_info.get_async(&restaurant.id).await
-                {
-                    if booking_info.booking_state & (1 << person_number) != 0 {
-                        let booking_expiration_time =
-                            booking_info.get_booking_expiration_time((person_number - 1) as usize);
-                        if Local::now() > *booking_expiration_time {
-                            booking_info.booking_state &= !(1 << person_number)
-                        } else {
-                            answered_restaurants_ids.push(restaurant.id);
-                        }
-                    }
-                    if (current_time - start_time).num_seconds() > 30
-                        && booking_info.booking_state & (1 << person_number) == 0
-                        && booking_info.notifications_state & (1 << person_number) == 0
-                    {
-                        no_answers += 1;
-                    }
+    for id in &awaited_restaurants_ids {
+        if let Some(mut booking_info) = restaurants_booking_info.get_async(id).await {
+            if booking_info.booking_state & (1 << person_number) != 0 {
+                let booking_expiration_time =
+                    booking_info.get_booking_expiration_time((person_number - 1) as usize);
+                if Local::now() > *booking_expiration_time {
+                    booking_info.booking_state &= !(1 << person_number)
+                } else {
+                    answered_restaurants_ids.push(*id);
                 }
             }
-            if (answered_restaurants_ids.len() + no_answers) == closest_restaurants.len() {
-                break;
-            }
-        } else {
-            break;
         }
-        task::sleep(Duration::from_secs(1)).await;
+    }
+    for id in &answered_restaurants_ids {
+        awaited_restaurants_ids.remove(id);
+    }
+    if !awaited_restaurants_ids.is_empty() {
+        select! {
+            _ = async {
+                while let Ok((id, answer, recieved_person_number)) = rx.recv().await {
+                    if recieved_person_number == person_number && awaited_restaurants_ids.contains(&id) {
+                        awaited_restaurants_ids.remove(&id);
+                        if answer {
+                            answered_restaurants_ids.push(id);
+                        }
+                        if awaited_restaurants_ids.is_empty() {
+                            break;
+                        }
+                    }
+                }
+            } => {}
+            _  = task::sleep(Duration::from_secs(BOOKING_REQUEST_EXPIRATION_MINUTES * 60)) => {}
+        }
     }
     let person_noun_form = resolve_person_noun_form(person_number);
     if !answered_restaurants_ids.is_empty() {
@@ -184,7 +176,7 @@ pub(crate) async fn wait_for_restaurants_response(
             }
         }
         bot.send_message(
-            msg.chat.id,
+            chat_id,
             format!(
                 "Список ресторанов, где есть места на {person_number} \
                  {person_noun_form}:\n{formatted_answer}"
@@ -195,7 +187,7 @@ pub(crate) async fn wait_for_restaurants_response(
         .await?;
     } else {
         bot.send_message(
-            msg.chat.id,
+            chat_id,
             format!("К сожалению, мест на {person_number} {person_noun_form} нет"),
         )
         .await?;

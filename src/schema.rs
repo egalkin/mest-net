@@ -3,8 +3,9 @@ use crate::{
     db::DatabaseHandler,
     model::{
         booking_info::BookingInfo,
-        commands::{BotCommand, MestCheckCommand},
-        state::{State, State::Start},
+        bot_command::BotCommand,
+        mest_check_command::MestCheckCommand,
+        state::State::{self, Start},
         types::*,
     },
     utils::{
@@ -25,7 +26,7 @@ use teloxide::{
     types::{ParseMode, ReplyMarkup},
     utils::command::BotCommands,
 };
-use tokio::sync::mpsc::Sender;
+use tokio::sync::{broadcast, mpsc};
 
 pub(crate) fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync>> {
     use dptree::case;
@@ -240,6 +241,7 @@ async fn receive_share_contact_allowance(
 async fn receive_booking_request(
     restaurants_booking_info: Db<i32, BookingInfo>,
     db_handler: DatabaseHandler,
+    sender: broadcast::Sender<(i32, bool, u8)>,
     bot: Bot,
     _dialogue: MyDialogue,
     msg: Message,
@@ -311,6 +313,11 @@ async fn receive_booking_request(
                                     person_number
                                 );
                                 booking_info.notifications_state &= !(1 << person_number);
+                                if let Err(err) =
+                                    sender.send((manager.restaurant_id, ans == "Да", person_number))
+                                {
+                                    log::error!("{err}");
+                                }
                                 bot.send_message(msg.chat.id, "Спасибо за ваш ответ")
                                     .await?;
                             }
@@ -375,7 +382,8 @@ async fn receive_person_number(bot: Bot, dialogue: MyDialogue, msg: Message) -> 
 
 async fn receive_location(
     restaurants_booking_info: Db<i32, BookingInfo>,
-    sender: Sender<MestCheckCommand>,
+    command_sender: mpsc::Sender<MestCheckCommand>,
+    answer_sender: broadcast::Sender<(i32, bool, u8)>,
     db_handler: DatabaseHandler,
     bot: Bot,
     dialogue: MyDialogue,
@@ -391,31 +399,26 @@ async fn receive_location(
             .reply_markup(make_search_keyboard())
             .await?;
 
+            let mest_check_command =
+                MestCheckCommand::new(person_number, location.longitude, location.latitude);
             {
                 let bot = bot.clone();
                 let msg = msg.clone();
-                let longitude = location.longitude;
-                let latitude = location.latitude;
+                let mest_check_command = mest_check_command.clone();
                 tokio::spawn(async move {
                     wait_for_restaurants_response(
                         bot,
-                        msg,
+                        msg.chat.id,
+                        answer_sender.subscribe(),
                         db_handler.clone(),
-                        longitude,
-                        latitude,
+                        mest_check_command,
                         restaurants_booking_info,
-                        person_number,
                     )
                     .await
                 });
             }
 
-            let cmd = MestCheckCommand::Check {
-                person_number,
-                longitude: location.longitude,
-                latitude: location.latitude,
-            };
-            if let Err(err) = sender.send(cmd).await {
+            if let Err(err) = command_sender.send(mest_check_command.clone()).await {
                 log::error!("{err}")
             } else {
                 log::info!(
@@ -424,8 +427,8 @@ async fn receive_location(
                     msg.from().unwrap().username,
                     msg.from().unwrap().id,
                     person_number,
-                    location.latitude,
-                    location.longitude
+                    mest_check_command.latitude,
+                    mest_check_command.longitude
                 )
             };
 
