@@ -10,7 +10,7 @@ insert into restaurant values
       }
     }',
     100,
-    '+78126400506',
+    '+7xxxxxxxxxx',
     ST_MakePoint(30.299833, 60.000142));
 
 insert into restaurant values
@@ -30,9 +30,9 @@ insert into restaurant values
       }
     }',
     100,
-    '+79944337352',
+    '+7xxxxxxxxxx',
     ST_MakePoint(30.299903, 60.002264));
 
 insert into manager values
-    (1, null, 'Mama', 1),
-    (2, null, 'Papa', 2);
+    (1, null, 'Manager 1', 1),
+    (2, null, 'Manager 2', 2);
